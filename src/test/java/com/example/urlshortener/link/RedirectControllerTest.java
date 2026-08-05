@@ -6,7 +6,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.urlshortener.common.error.Errors;
-import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -21,9 +20,7 @@ class RedirectControllerTest {
 
   @Test
   void redirectsWith302AndLocation() throws Exception {
-    Link link =
-        Link.create("abc1234", "https://example.com/page", "hash", Instant.now(), null);
-    when(linkService.resolveForRedirect("abc1234")).thenReturn(link);
+    when(linkService.resolveTargetUrl("abc1234")).thenReturn("https://example.com/page");
 
     mockMvc
         .perform(get("/abc1234"))
@@ -34,14 +31,14 @@ class RedirectControllerTest {
 
   @Test
   void unknownCodeReturns404() throws Exception {
-    when(linkService.resolveForRedirect("missing")).thenThrow(new Errors.NotFound("nope"));
+    when(linkService.resolveTargetUrl("missing")).thenThrow(new Errors.NotFound("nope"));
 
     mockMvc.perform(get("/missing")).andExpect(status().isNotFound());
   }
 
   @Test
   void expiredLinkReturns410() throws Exception {
-    when(linkService.resolveForRedirect("expired")).thenThrow(new Errors.Gone("expired"));
+    when(linkService.resolveTargetUrl("expired")).thenThrow(new Errors.Gone("expired"));
 
     mockMvc.perform(get("/expired")).andExpect(status().isGone());
   }

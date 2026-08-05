@@ -3,6 +3,8 @@ package com.example.urlshortener.link;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -16,6 +18,7 @@ import com.example.urlshortener.link.LinkService.CreateResult;
 import com.example.urlshortener.link.dto.CreateLinkRequest;
 import com.example.urlshortener.support.TestFixtures;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
@@ -34,6 +37,7 @@ class LinkServiceTest {
 
   @Mock private LinkRepository repository;
   @Mock private ShortCodeGenerator codeGenerator;
+  @Mock private RedirectCache cache;
 
   private LinkService service;
   private ManagementTokenService tokenService;
@@ -47,6 +51,7 @@ class LinkServiceTest {
             codeGenerator,
             new UrlValidator(TestFixtures.appProperties()),
             tokenService,
+            cache,
             TestFixtures.appProperties(),
             Clock.fixed(NOW, ZoneOffset.UTC));
   }
@@ -188,6 +193,74 @@ class LinkServiceTest {
   }
 
   @Nested
+  class ResolveTargetUrl {
+
+    @Test
+    void cacheHitSkipsDatabase() {
+      when(cache.lookup("abc1234")).thenReturn(RedirectCache.Lookup.hit("https://cached.example"));
+
+      assertThat(service.resolveTargetUrl("abc1234")).isEqualTo("https://cached.example");
+      verifyNoInteractions(repository);
+    }
+
+    @Test
+    void cacheNegativeThrowsNotFoundWithoutDatabase() {
+      when(cache.lookup("missing")).thenReturn(RedirectCache.Lookup.negative());
+
+      assertThatThrownBy(() -> service.resolveTargetUrl("missing"))
+          .isInstanceOf(Errors.NotFound.class);
+      verifyNoInteractions(repository);
+    }
+
+    @Test
+    void cacheMissLoadsFromDbAndPopulatesPositive() {
+      when(cache.lookup("abc1234")).thenReturn(RedirectCache.Lookup.miss());
+      Link link = Link.create("abc1234", "https://example.com", "hash", NOW, null);
+      when(repository.findByShortCode("abc1234")).thenReturn(Optional.of(link));
+
+      assertThat(service.resolveTargetUrl("abc1234")).isEqualTo("https://example.com");
+      verify(cache).putPositive(eq("abc1234"), eq("https://example.com"), any(Duration.class));
+    }
+
+    @Test
+    void cacheMissUnknownPopulatesNegative() {
+      when(cache.lookup("missing")).thenReturn(RedirectCache.Lookup.miss());
+      when(repository.findByShortCode("missing")).thenReturn(Optional.empty());
+
+      assertThatThrownBy(() -> service.resolveTargetUrl("missing"))
+          .isInstanceOf(Errors.NotFound.class);
+      verify(cache).putNegative(eq("missing"), any(Duration.class));
+    }
+
+    @Test
+    void expiredLinkIsNeverCachedPositively() {
+      when(cache.lookup("abc1234")).thenReturn(RedirectCache.Lookup.miss());
+      Link expired =
+          Link.create("abc1234", "https://example.com", "hash", NOW.minusSeconds(10), NOW.minusSeconds(1));
+      when(repository.findByShortCode("abc1234")).thenReturn(Optional.of(expired));
+
+      assertThatThrownBy(() -> service.resolveTargetUrl("abc1234"))
+          .isInstanceOf(Errors.Gone.class);
+      verify(cache, never()).putPositive(any(), any(), any());
+    }
+
+    @Test
+    void positiveTtlIsBoundedByRemainingLifetime() {
+      when(cache.lookup("abc1234")).thenReturn(RedirectCache.Lookup.miss());
+      // Expires in 10 minutes; the default cache TTL is 1 hour, so TTL must be clamped to ~10m.
+      Instant expiresAt = NOW.plusSeconds(600);
+      Link link = Link.create("abc1234", "https://example.com", "hash", NOW, expiresAt);
+      when(repository.findByShortCode("abc1234")).thenReturn(Optional.of(link));
+
+      service.resolveTargetUrl("abc1234");
+
+      org.mockito.ArgumentCaptor<Duration> ttl = org.mockito.ArgumentCaptor.forClass(Duration.class);
+      verify(cache).putPositive(eq("abc1234"), eq("https://example.com"), ttl.capture());
+      assertThat(ttl.getValue()).isLessThanOrEqualTo(Duration.ofSeconds(600));
+    }
+  }
+
+  @Nested
   class Delete {
 
     @Test
@@ -227,6 +300,7 @@ class LinkServiceTest {
               codeGenerator,
               new UrlValidator(TestFixtures.appProperties()),
               tokenService,
+              cache,
               TestFixtures.appProperties(7, false),
               Clock.fixed(NOW, ZoneOffset.UTC));
       Link link = Link.create("abc1234", "https://example.com", "hash", NOW, null);

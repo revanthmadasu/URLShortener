@@ -7,6 +7,7 @@ import com.example.urlshortener.config.AppProperties;
 import com.example.urlshortener.link.codec.ShortCodeGenerator;
 import com.example.urlshortener.link.dto.CreateLinkRequest;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +43,7 @@ public class LinkService {
   private final ShortCodeGenerator codeGenerator;
   private final UrlValidator urlValidator;
   private final ManagementTokenService tokenService;
+  private final RedirectCache cache;
   private final AppProperties properties;
   private final Clock clock;
 
@@ -50,12 +52,14 @@ public class LinkService {
       ShortCodeGenerator codeGenerator,
       UrlValidator urlValidator,
       ManagementTokenService tokenService,
+      RedirectCache cache,
       AppProperties properties,
       Clock clock) {
     this.repository = repository;
     this.codeGenerator = codeGenerator;
     this.urlValidator = urlValidator;
     this.tokenService = tokenService;
+    this.cache = cache;
     this.properties = properties;
     this.clock = clock;
   }
@@ -97,6 +101,50 @@ public class LinkService {
         "Could not generate a unique short code after " + MAX_GENERATION_ATTEMPTS + " attempts");
   }
 
+  /**
+   * Cached entry point for redirection: returns the destination URL for {@code code}, using the
+   * Redis cache-aside path and falling back to Postgres on a miss (or when Redis is unavailable).
+   * Throws 404 if unknown, 410 if expired.
+   *
+   * <p>The positive cache TTL is bounded by the link's remaining lifetime so a cache hit — which
+   * bypasses the DB and therefore the expiry check — can never serve an expired link.
+   */
+  public String resolveTargetUrl(String code) {
+    RedirectCache.Lookup cached = cache.lookup(code);
+    switch (cached.kind()) {
+      case HIT -> {
+        return cached.url();
+      }
+      case NEGATIVE -> throw notFound(code);
+      case MISS -> {
+        // fall through to the source of truth
+      }
+    }
+
+    final Link link;
+    try {
+      link = resolveForRedirect(code);
+    } catch (Errors.NotFound nf) {
+      // Negative-cache unknown codes briefly to shield the DB from scanning/probing.
+      cache.putNegative(code, properties.cache().negativeTtl());
+      throw nf;
+    }
+    // Present and not expired: cache with a TTL that never outlives the link.
+    cache.putPositive(code, link.getLongUrl(), positiveTtlFor(link));
+    return link.getLongUrl();
+  }
+
+  private Duration positiveTtlFor(Link link) {
+    Duration ttl = properties.cache().ttl();
+    if (link.getExpiresAt() != null) {
+      Duration untilExpiry = Duration.between(clock.instant(), link.getExpiresAt());
+      if (untilExpiry.compareTo(ttl) < 0) {
+        ttl = untilExpiry;
+      }
+    }
+    return ttl;
+  }
+
   /** Resolve a code to its destination for redirection. Throws 404 if unknown, 410 if expired. */
   public Link resolveForRedirect(String code) {
     Link link = repository.findByShortCode(code).orElseThrow(() -> notFound(code));
@@ -124,6 +172,8 @@ public class LinkService {
       }
     }
     repository.delete(link);
+    // Evict so a deleted link stops redirecting immediately instead of lingering until TTL.
+    cache.evict(code);
   }
 
   private Instant validateExpiry(Instant expiresAt) {

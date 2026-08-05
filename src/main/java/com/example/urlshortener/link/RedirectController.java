@@ -31,9 +31,9 @@ public class RedirectController {
 
   @GetMapping("/{code:[A-Za-z0-9_-]{3,32}}")
   public ResponseEntity<Void> redirect(@PathVariable String code) {
-    Link link = linkService.resolveForRedirect(code);
+    String targetUrl = linkService.resolveTargetUrl(code);
     return ResponseEntity.status(HttpStatus.FOUND)
-        .header(HttpHeaders.LOCATION, link.getLongUrl())
+        .header(HttpHeaders.LOCATION, targetUrl)
         .header(HttpHeaders.CACHE_CONTROL, "private, no-cache, max-age=0")
         .build();
   }
