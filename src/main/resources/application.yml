@@ -1,0 +1,91 @@
+spring:
+  application:
+    name: urlshortener
+
+  # --- Datasource (source of truth) ---
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/urlshortener}
+    username: ${DB_USERNAME:urlshortener}
+    password: ${DB_PASSWORD:urlshortener}
+    hikari:
+      pool-name: url-shortener-pool
+      maximum-pool-size: ${DB_POOL_MAX:16}
+      minimum-idle: 2
+      connection-timeout: 3000
+
+  jpa:
+    hibernate:
+      # Schema is owned by Flyway migrations, never by Hibernate DDL.
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+
+  # --- Redis (hot-path cache; optional, service degrades gracefully if down) ---
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 250ms
+      connect-timeout: 500ms
+
+  # Virtual threads: this is a blocking-I/O service (JDBC + Redis). Java 21 virtual
+  # threads let us handle high redirect concurrency without a large platform-thread pool.
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  # Redirect responses are tiny; enable compression for the JSON management APIs.
+  shutdown: graceful
+
+# --- Application-specific configuration (bound to AppProperties) ---
+app:
+  # Public base URL used to build short links in responses. Override per environment.
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+  code:
+    # Length of generated short codes (base62). 7 chars ~ 3.5 trillion combinations.
+    length: 7
+    # Alphabet excludes look-alike characters is NOT done here on purpose: base62 keeps
+    # the keyspace dense. Custom aliases have their own stricter validation.
+    alphabet: "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  cache:
+    # TTL for cached redirect lookups in Redis.
+    ttl: 1h
+    # Negative cache TTL: remember "not found" briefly to shield the DB from scans.
+    negative-ttl: 30s
+  security:
+    # When true, destructive operations (DELETE) require the per-link management token
+    # returned at creation time. Keeps an "open prototype" from being trivially abusable.
+    require-management-token: true
+  redirect:
+    # Only http/https targets are allowed. Blocks javascript:, data:, file:, etc.
+    allowed-schemes: [http, https]
+    # Block links that resolve to private/loopback/link-local ranges (SSRF guardrail).
+    block-private-networks: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: [health, info, metrics, prometheus]
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    redis:
+      # Redis is a cache; its outage must not flip the service to DOWN.
+      enabled: false
+
+logging:
+  level:
+    com.example.urlshortener: INFO
