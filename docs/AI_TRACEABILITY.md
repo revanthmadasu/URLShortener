@@ -73,4 +73,48 @@ Surefire). Toolchain proven on the real target runtime before feature work began
 
 ---
 
+## Task 1 — Greenfield core link service *(scenario 1)*
+
+**Intent.** Implement create / redirect / fetch / delete with a durable schema, input
+validation, structured errors, and a test suite — the working core of the prototype.
+
+**Constraints.** Postgres owns the schema (Flyway; Hibernate `validate` only). No
+check-then-insert. Errors as RFC 9457 problem+json. Redirects must remain observable for
+future analytics. Unit tests must run without Docker.
+
+**Acceptance criteria.**
+- `POST /api/v1/links` → 201 + one-time management token; `GET /{code}` → 302; metadata via
+  `GET /api/v1/links/{code}`; `DELETE` guarded by the management token (403 without).
+- Invalid/dangerous URLs and past expiries rejected with 400; unknown → 404; expired → 410.
+- `./mvnw test` green with no external services.
+
+**Decomposition (executed in order).**
+1. Flyway `V1` schema (unique index on `short_code` as the collision arbiter).
+2. `Link` entity + `LinkRepository`.
+3. `RandomShortCodeGenerator` (naive v1, concrete — seam for Phase 2 refactor).
+4. `UrlValidator` (scheme allowlist; SSRF gap left for Phase 2, tracked R3).
+5. `ManagementTokenService` (issue once, store SHA-256, constant-time verify).
+6. `LinkService` (insert-and-catch retry; alias-conflict → 409; expiry via injected `Clock`).
+7. Controllers + `GlobalExceptionHandler` (problem+json).
+8. Tests: 43 unit tests + a Testcontainers `LinkFlowIT` (full flow + concurrent alias race).
+
+**Notable dispositions.**
+
+| Item | Disposition | Rationale |
+|---|---|---|
+| `@WebMvcTest` import `...boot.test.autoconfigure.web.servlet` | ❌ Rejected by compiler | Boot 4 moved it to `...boot.webmvc.test.autoconfigure`. AI located the class in the jar and corrected the import rather than guessing. |
+| `Link.create(...)` calling `Instant.now()` internally | ✏️ Edited | Refactored to accept `createdAt` from the service's injected `Clock` — deterministic tests, single clock source. |
+| Retry loop inside an outer `@Transactional` | ❌ Rejected in design | A constraint violation poisons the surrounding transaction. Chose repository-per-call transactions so each attempt rolls back independently. Documented in `LinkService` Javadoc. |
+| 301 vs 302 for redirect | ✏️ Chose 302 + no-cache | 301 is cached by browsers and would hide clicks from analytics. Trade-off documented in `RedirectController`. |
+| Unused `HttpEntity`/`HttpMethod` imports in IT (AI first added a `@SuppressWarnings` guard) | ❌ Rejected | The guard was a smell; removed the imports outright. |
+| Migration column `management_token_hash CHAR(64)` | ✏️ Edited → `VARCHAR(64)` | **Caught only by the integration test**, not units: Hibernate `ddl-auto=validate` rejected `bpchar` vs the entity's expected `varchar`. `VARCHAR` is also more correct — `CHAR` space-pads to a fixed width. A concrete case for testing against the real database, not just mocks. |
+
+**Quality gate:** `./mvnw verify` → **43 unit + 3 integration passed, 0 failed.** The
+`concurrentSameAliasYieldsExactlyOneWinner` IT fires 16 simultaneous creates of the same alias
+against real Postgres and asserts exactly one 201 and fifteen 409s — proving the unique index,
+not application code, arbitrates the race.
+
+🚦 **Sign-off:** Engineer to review commit; end-to-end verified green.
+
 <!-- Subsequent tasks appended per phase. -->
+

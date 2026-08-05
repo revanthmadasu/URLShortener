@@ -117,6 +117,34 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+
+			<!-- Surefire runs UNIT tests only (fast, no Docker). It excludes *IT and, by
+			     default, the JUnit "integration" tag so `mvn test` never needs Docker. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>**/*IT.java</exclude>
+					</excludes>
+					<excludedGroups>integration</excludedGroups>
+				</configuration>
+			</plugin>
+
+			<!-- Failsafe runs INTEGRATION tests (*IT) in the verify phase. These use
+			     Testcontainers and require a Docker daemon. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>integration-test</goal>
+							<goal>verify</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>

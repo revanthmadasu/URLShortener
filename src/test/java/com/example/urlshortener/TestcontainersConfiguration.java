@@ -12,7 +12,7 @@ import org.testcontainers.utility.DockerImageName;
  * versions used in {@code docker-compose.yml} so tests exercise the real target runtime.
  */
 @TestConfiguration(proxyBeanMethods = false)
-class TestcontainersConfiguration {
+public class TestcontainersConfiguration {
 
   @Bean
   @ServiceConnection
