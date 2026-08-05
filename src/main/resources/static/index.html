@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>URL Shortener — API Tester</title>
+    <style>
+      :root {
+        --bg: #0f1419; --panel: #1a2029; --border: #2b3440; --fg: #e6edf3;
+        --muted: #8b98a5; --accent: #4c9aff; --ok: #3fb950; --err: #f85149; --chip: #21313f;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f6f8fa; --panel: #ffffff; --border: #d0d7de; --fg: #1f2328;
+          --muted: #57606a; --accent: #0969da; --ok: #1a7f37; --err: #cf222e; --chip: #eaeef2;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--fg);
+        font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      header { padding: 24px 20px 8px; max-width: 900px; margin: 0 auto; }
+      h1 { margin: 0 0 4px; font-size: 22px; }
+      header p { margin: 0; color: var(--muted); }
+      main { max-width: 900px; margin: 0 auto; padding: 12px 20px 60px;
+        display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .card { background: var(--panel); border: 1px solid var(--border);
+        border-radius: 10px; padding: 16px; }
+      .card.wide { grid-column: 1 / -1; }
+      h2 { margin: 0 0 12px; font-size: 15px; }
+      .method { font: 11px/1 ui-monospace, monospace; padding: 3px 6px; border-radius: 5px;
+        background: var(--chip); color: var(--accent); margin-right: 6px; }
+      label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+      input {
+        width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px;
+        background: var(--bg); color: var(--fg); font-size: 14px;
+      }
+      .row { display: flex; gap: 8px; }
+      .row > * { flex: 1; }
+      button {
+        margin-top: 12px; padding: 9px 14px; border: 0; border-radius: 7px;
+        background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; font-size: 14px;
+      }
+      button.secondary { background: var(--chip); color: var(--fg); border: 1px solid var(--border); }
+      button:active { transform: translateY(1px); }
+      pre {
+        margin: 12px 0 0; padding: 12px; background: var(--bg); border: 1px solid var(--border);
+        border-radius: 7px; overflow-x: auto; font: 12.5px/1.5 ui-monospace, monospace;
+        white-space: pre-wrap; word-break: break-word; max-height: 320px;
+      }
+      .status { font-weight: 700; }
+      .status.ok { color: var(--ok); }
+      .status.err { color: var(--err); }
+      a.link { color: var(--accent); word-break: break-all; }
+      .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+      code { background: var(--chip); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>URL Shortener — API Tester</h1>
+      <p>A minimal UI over the REST API. Everything below calls this server directly.</p>
+    </header>
+    <main>
+      <!-- CREATE -->
+      <section class="card">
+        <h2><span class="method">POST</span> Create a short link</h2>
+        <label>Destination URL</label>
+        <input id="c-url" value="https://example.com/some/very/long/path?ref=demo" />
+        <div class="row">
+          <div>
+            <label>Custom alias (optional)</label>
+            <input id="c-alias" placeholder="my-link" />
+          </div>
+          <div>
+            <label>Expires at (optional, ISO-8601 UTC)</label>
+            <input id="c-exp" placeholder="2027-01-01T00:00:00Z" />
+          </div>
+        </div>
+        <button onclick="createLink()">Create</button>
+        <p class="hint">
+          On success the short code is remembered below, and its one-time
+          <strong>management token</strong> is stored in this browser for delete.
+        </p>
+        <pre id="c-out">—</pre>
+      </section>
+
+      <!-- REDIRECT -->
+      <section class="card">
+        <h2><span class="method">GET</span> Redirect <code>/{code}</code></h2>
+        <label>Short code</label>
+        <input id="r-code" placeholder="Md2Wh2u" />
+        <div class="row">
+          <button onclick="openRedirect()">Open in new tab (follows 302)</button>
+          <button class="secondary" onclick="peekRedirect()">Peek (show status only)</button>
+        </div>
+        <p class="hint">
+          Browsers follow the 302 automatically, so "Open" lands on the destination. "Peek" makes
+          a background request to record a click without navigating.
+        </p>
+        <pre id="r-out">—</pre>
+      </section>
+
+      <!-- STATS -->
+      <section class="card">
+        <h2><span class="method">GET</span> Click stats</h2>
+        <div class="row">
+          <div>
+            <label>Short code</label>
+            <input id="s-code" placeholder="Md2Wh2u" />
+          </div>
+          <div>
+            <label>Window (days)</label>
+            <input id="s-days" value="30" />
+          </div>
+        </div>
+        <button onclick="getStats()">Get stats</button>
+        <pre id="s-out">—</pre>
+      </section>
+
+      <!-- DELETE -->
+      <section class="card">
+        <h2><span class="method">DELETE</span> Delete a link</h2>
+        <label>Short code</label>
+        <input id="d-code" placeholder="Md2Wh2u" />
+        <label>Management token (auto-filled if created here)</label>
+        <input id="d-token" placeholder="token from create response" />
+        <button onclick="deleteLink()">Delete</button>
+        <p class="hint">Without a valid token this returns <code>403</code>.</p>
+        <pre id="d-out">—</pre>
+      </section>
+
+      <!-- LOG -->
+      <section class="card wide">
+        <h2>Response log</h2>
+        <pre id="log">Actions and raw responses appear here…</pre>
+      </section>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const tokens = JSON.parse(localStorage.getItem("mgmtTokens") || "{}");
+
+      function log(line) {
+        const el = $("log");
+        el.textContent = "[" + new Date().toLocaleTimeString() + "] " + line + "\n" + el.textContent;
+      }
+
+      function show(el, status, body) {
+        const ok = status >= 200 && status < 300;
+        const cls = ok ? "ok" : "err";
+        el.innerHTML =
+          '<span class="status ' + cls + '">HTTP ' + status + "</span>\n" +
+          (typeof body === "string" ? body : JSON.stringify(body, null, 2));
+      }
+
+      async function req(method, url, body, headers) {
+        const opts = { method, headers: headers || {} };
+        if (body !== undefined) {
+          opts.headers["Content-Type"] = "application/json";
+          opts.body = JSON.stringify(body);
+        }
+        const res = await fetch(url, opts);
+        let parsed;
+        const text = await res.text();
+        try { parsed = text ? JSON.parse(text) : ""; } catch { parsed = text; }
+        return { status: res.status, body: parsed };
+      }
+
+      async function createLink() {
+        const payload = { url: $("c-url").value.trim() };
+        const alias = $("c-alias").value.trim();
+        const exp = $("c-exp").value.trim();
+        if (alias) payload.customAlias = alias;
+        if (exp) payload.expiresAt = exp;
+        const { status, body } = await req("POST", "/api/v1/links", payload);
+        show($("c-out"), status, body);
+        log("POST /api/v1/links → " + status);
+        if (status === 201 && body.link) {
+          const code = body.link.shortCode;
+          tokens[code] = body.managementToken;
+          localStorage.setItem("mgmtTokens", JSON.stringify(tokens));
+          $("r-code").value = code;
+          $("s-code").value = code;
+          $("d-code").value = code;
+          $("d-token").value = body.managementToken;
+        }
+      }
+
+      function openRedirect() {
+        const code = $("r-code").value.trim();
+        if (!code) return;
+        window.open("/" + code, "_blank");
+        show($("r-out"), 302, "Opened /" + code + " in a new tab (browser follows the 302).");
+        log("GET /" + code + " (opened in new tab)");
+      }
+
+      async function peekRedirect() {
+        const code = $("r-code").value.trim();
+        if (!code) return;
+        // manual redirect: we can't read the Location cross-origin, but the request still
+        // reaches the server and records a click. Status 0 = opaqueredirect (a 3xx we didn't follow).
+        try {
+          const res = await fetch("/" + code, { redirect: "manual" });
+          const s = res.status === 0 ? "302 (opaque redirect — click recorded)" : res.status;
+          show($("r-out"), res.status === 0 ? 302 : res.status, "Server reached: " + s);
+          log("GET /" + code + " (peek) → " + s);
+        } catch (e) {
+          show($("r-out"), 0, String(e));
+        }
+      }
+
+      async function getStats() {
+        const code = $("s-code").value.trim();
+        const days = $("s-days").value.trim() || "30";
+        const { status, body } = await req("GET", "/api/v1/links/" + code + "/stats?days=" + days);
+        show($("s-out"), status, body);
+        log("GET /api/v1/links/" + code + "/stats?days=" + days + " → " + status);
+      }
+
+      async function deleteLink() {
+        const code = $("d-code").value.trim();
+        const token = $("d-token").value.trim() || tokens[code] || "";
+        const { status, body } = await req("DELETE", "/api/v1/links/" + code, undefined, {
+          "X-Management-Token": token,
+        });
+        show($("d-out"), status, status === 204 ? "Deleted." : body);
+        log("DELETE /api/v1/links/" + code + " → " + status);
+      }
+    </script>
+  </body>
+</html>
