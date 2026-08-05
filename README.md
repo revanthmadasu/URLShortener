@@ -6,8 +6,10 @@ interview assignment demonstrating **AI-assisted software engineering** — see
 [`docs/`](docs/) for the architecture overview, decision records, scenario write-ups, and the
 [AI traceability log](docs/AI_TRACEABILITY.md).
 
-> **Status:** Phases 0–3 complete (core service, brownfield refactor/caching/security,
-> analytics). See [`docs/AI_TRACEABILITY.md`](docs/AI_TRACEABILITY.md) for the live execution log.
+> **Status:** Complete. Core service, brownfield refactor/caching/security, analytics,
+> reliability + quality gates, and full documentation. **101 unit + 6 integration tests**,
+> ~94% line coverage. See [`docs/ENGINEERING_SUMMARY.md`](docs/ENGINEERING_SUMMARY.md) for the
+> full write-up and [`docs/AI_TRACEABILITY.md`](docs/AI_TRACEABILITY.md) for the execution log.
 
 ## Features
 
@@ -78,6 +80,7 @@ trade-offs.
 
 | Document | What it covers |
 |---|---|
+| [Engineering Summary](docs/ENGINEERING_SUMMARY.md) | Plan, rationale, validation, assumptions, limitations |
 | [Architecture](docs/ARCHITECTURE.md) | Components, control flow, key decisions |
 | [ADRs](docs/adr/) | Architecture Decision Records |
 | [Scenarios](docs/scenarios/) | Greenfield / brownfield / ambiguous walkthroughs |
