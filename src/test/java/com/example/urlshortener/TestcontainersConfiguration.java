@@ -1,8 +1,11 @@
 package com.example.urlshortener;
 
+import com.example.urlshortener.link.PrivateNetworkGuard;
+import java.net.InetAddress;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -26,5 +29,16 @@ public class TestcontainersConfiguration {
   @ServiceConnection(name = "redis")
   GenericContainer<?> redisContainer() {
     return new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
+  }
+
+  /**
+   * Override the real DNS-resolving guard with a deterministic one for integration tests: every
+   * host resolves to a public address, so tests never depend on external DNS. The private-network
+   * range logic itself is covered hermetically by {@code UrlValidatorTest.PrivateNetworkBlocking}.
+   */
+  @Bean
+  @Primary
+  PrivateNetworkGuard testPrivateNetworkGuard() {
+    return new PrivateNetworkGuard(host -> new InetAddress[] {InetAddress.getByName("93.184.216.34")});
   }
 }

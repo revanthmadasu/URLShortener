@@ -49,7 +49,7 @@ class LinkServiceTest {
         new LinkService(
             repository,
             codeGenerator,
-            new UrlValidator(TestFixtures.appProperties()),
+            TestFixtures.urlValidator(),
             tokenService,
             cache,
             TestFixtures.appProperties(),
@@ -298,7 +298,7 @@ class LinkServiceTest {
           new LinkService(
               repository,
               codeGenerator,
-              new UrlValidator(TestFixtures.appProperties()),
+              TestFixtures.urlValidator(),
               tokenService,
               cache,
               TestFixtures.appProperties(7, false),

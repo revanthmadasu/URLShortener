@@ -5,6 +5,10 @@ import com.example.urlshortener.config.AppProperties.Cache;
 import com.example.urlshortener.config.AppProperties.Code;
 import com.example.urlshortener.config.AppProperties.Redirect;
 import com.example.urlshortener.config.AppProperties.Security;
+import com.example.urlshortener.link.PrivateNetworkGuard;
+import com.example.urlshortener.link.UrlValidator;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.List;
 
@@ -28,5 +32,23 @@ public final class TestFixtures {
         new Cache(Duration.ofHours(1), Duration.ofSeconds(30)),
         new Security(requireManagementToken),
         new Redirect(List.of("http", "https"), true));
+  }
+
+  /** A guard whose resolver always returns a public IP, so no host is ever blocked (no DNS). */
+  public static PrivateNetworkGuard permissiveGuard() {
+    return new PrivateNetworkGuard(host -> new InetAddress[] {publicAddress()});
+  }
+
+  /** A validator wired with the permissive guard — for tests unrelated to SSRF blocking. */
+  public static UrlValidator urlValidator() {
+    return new UrlValidator(appProperties(), permissiveGuard());
+  }
+
+  private static InetAddress publicAddress() {
+    try {
+      return InetAddress.getByName("93.184.216.34"); // literal, no DNS lookup
+    } catch (UnknownHostException e) {
+      throw new IllegalStateException(e);
+    }
   }
 }

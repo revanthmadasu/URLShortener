@@ -1,7 +1,7 @@
 package com.example.urlshortener.link;
 
-import com.example.urlshortener.config.AppProperties;
 import com.example.urlshortener.common.error.Errors;
+import com.example.urlshortener.config.AppProperties;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -11,22 +11,25 @@ import org.springframework.stereotype.Component;
 /**
  * Validates destination URLs before they are stored.
  *
- * <p>Phase 1 scope: syntactic validity, an absolute URL, a present host, and a scheme on the
- * allowlist (http/https). This blocks {@code javascript:}, {@code data:}, {@code file:} and
- * other dangerous schemes that would otherwise enable stored-XSS-style open redirects.
- *
- * <p><b>Known gap (closed in Phase 2 / brownfield).</b> This does not yet resolve the host to
- * check for private/loopback/link-local addresses, so it does not fully prevent SSRF via a
- * shortened link pointing at internal infrastructure. Tracked as risk R3.
+ * <p>Checks, in order: syntactic validity, an absolute URL, a present host, a scheme on the
+ * allowlist (http/https — blocks {@code javascript:}, {@code data:}, {@code file:}, …), and,
+ * when {@code app.redirect.block-private-networks} is enabled, that the host does not resolve
+ * to a private/loopback/link-local/metadata range (see {@link PrivateNetworkGuard}, risk R3).
  */
 @Component
 public class UrlValidator {
 
   private final List<String> allowedSchemes;
+  private final boolean blockPrivateNetworks;
+  private final PrivateNetworkGuard privateNetworkGuard;
 
-  public UrlValidator(AppProperties properties) {
+  public UrlValidator(AppProperties properties, PrivateNetworkGuard privateNetworkGuard) {
     this.allowedSchemes =
-        properties.redirect().allowedSchemes().stream().map(s -> s.toLowerCase(Locale.ROOT)).toList();
+        properties.redirect().allowedSchemes().stream()
+            .map(s -> s.toLowerCase(Locale.ROOT))
+            .toList();
+    this.blockPrivateNetworks = properties.redirect().blockPrivateNetworks();
+    this.privateNetworkGuard = privateNetworkGuard;
   }
 
   /** Returns the normalized URL string, or throws {@link Errors.InvalidUrl}. */
@@ -44,8 +47,12 @@ public class UrlValidator {
     if (!allowedSchemes.contains(scheme)) {
       throw new Errors.InvalidUrl("URL scheme '" + scheme + "' is not allowed");
     }
-    if (uri.getHost() == null || uri.getHost().isBlank()) {
+    String host = uri.getHost();
+    if (host == null || host.isBlank()) {
       throw new Errors.InvalidUrl("URL must include a host");
+    }
+    if (blockPrivateNetworks && privateNetworkGuard.isDisallowed(host)) {
+      throw new Errors.InvalidUrl("URL host resolves to a disallowed (private/internal) address");
     }
     return uri.toString();
   }

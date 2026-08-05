@@ -116,5 +116,49 @@ not application code, arbitrates the race.
 
 🚦 **Sign-off:** Engineer to review commit; end-to-end verified green.
 
+## Task 2 — Brownfield: refactor, cache, security fix *(scenario 2)*
+
+**Intent.** Evolve the tested Phase 1 core without breaking it: collision-free code generation,
+a redirect cache that degrades gracefully, and closing the SSRF/private-network gap. Delivered
+as three independently reviewable commits (2A/2B/2C), each green before the next.
+
+**Impact analysis first.** See [brownfield scenario](scenarios/brownfield.md) — mapped which
+modules/data-flows each change touches and the risk to existing behavior before editing.
+
+### 2A — Code-gen refactor (commit `212a6f4`)
+- Extracted `ShortCodeGenerator` strategy; added `FeistelShortCodeGenerator` (sequence + Feistel
+  + cycle-walking) and kept `RandomShortCodeGenerator`. Selected via `app.code.strategy`.
+- **Key reasoning captured:** generated codes and custom aliases share one namespace, so the DB
+  unique index stays the arbiter and the retry loop stays — the refactor removes *self*-collision,
+  not the DB check. This nuance is exactly the kind of thing a naive refactor gets wrong.
+- Property tests prove the codec is bijective over full small domains. ✅ Accepted.
+
+### 2B — Redis cache-aside (commit `4db2993`)
+- `RedirectCache` + self-contained `CircuitBreaker`. **Rejected** adding Resilience4j (unvetted on
+  Boot 4) in favor of a small, clock-injectable breaker that is deterministically unit-tested.
+- **Correctness guardrails from reasoning, not luck:** positive TTL bounded by remaining lifetime
+  (a cache hit skips the DB expiry check), and evict-on-delete. Both covered by tests.
+- **AI-introduced defect caught by a test:** the negative-cache sentinel string contained a stray
+  **NUL byte** (`"\0NF"`) that silently mismatched; `RedirectCacheTest.returnsNegativeForSentinel`
+  failed with `expected NEGATIVE but was HIT`. ✏️ Replaced with an explicit `"__NEGATIVE__"`
+  sentinel. Root-caused via `od -c` byte inspection — logged here as a reminder that AI-authored
+  literals need the same scrutiny as logic.
+
+### 2C — SSRF / private-network blocking (this commit)
+- `PrivateNetworkGuard` blocks hosts resolving to loopback/private/link-local (incl. cloud
+  metadata `169.254.169.254`)/wildcard/multicast/IPv6-ULA. Wired into `UrlValidator` behind
+  `app.redirect.block-private-networks`. Fails **closed** on unresolvable hosts.
+- **Honest scoping (not overclaiming):** documented that the service 302-redirects the client
+  (so this is defense-in-depth, not a full server-fetch SSRF control) and cannot stop DNS
+  rebinding. Risk R3 → Mitigated with residual noted.
+- **Test-hermeticity decision:** the guard does real DNS, which would couple integration tests to
+  external DNS. Resolved by a `@Primary` deterministic guard in `TestcontainersConfiguration`;
+  the range logic is covered hermetically by 23 unit cases (literal IPs, no DNS). ✅ Accepted.
+
+**Quality gate:** `./mvnw verify` → **90 unit + 4 integration passed.**
+
+🚦 **Sign-off:** Engineer to review 2A/2B/2C commits (three focused diffs).
+
 <!-- Subsequent tasks appended per phase. -->
+
 
