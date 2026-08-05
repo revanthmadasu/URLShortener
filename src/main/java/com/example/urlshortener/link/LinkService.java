@@ -4,6 +4,7 @@ import com.example.urlshortener.common.error.Errors;
 import com.example.urlshortener.common.security.ManagementTokenService;
 import com.example.urlshortener.common.security.ManagementTokenService.IssuedToken;
 import com.example.urlshortener.config.AppProperties;
+import com.example.urlshortener.link.codec.ShortCodeGenerator;
 import com.example.urlshortener.link.dto.CreateLinkRequest;
 import java.time.Clock;
 import java.time.Instant;
@@ -38,7 +39,7 @@ public class LinkService {
   private static final int MAX_GENERATION_ATTEMPTS = 5;
 
   private final LinkRepository repository;
-  private final RandomShortCodeGenerator codeGenerator;
+  private final ShortCodeGenerator codeGenerator;
   private final UrlValidator urlValidator;
   private final ManagementTokenService tokenService;
   private final AppProperties properties;
@@ -46,7 +47,7 @@ public class LinkService {
 
   public LinkService(
       LinkRepository repository,
-      RandomShortCodeGenerator codeGenerator,
+      ShortCodeGenerator codeGenerator,
       UrlValidator urlValidator,
       ManagementTokenService tokenService,
       AppProperties properties,

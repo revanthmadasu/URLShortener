@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.example.urlshortener.common.error.Errors;
 import com.example.urlshortener.common.security.ManagementTokenService;
 import com.example.urlshortener.common.security.ManagementTokenService.IssuedToken;
+import com.example.urlshortener.link.codec.ShortCodeGenerator;
 import com.example.urlshortener.link.LinkService.CreateResult;
 import com.example.urlshortener.link.dto.CreateLinkRequest;
 import com.example.urlshortener.support.TestFixtures;
@@ -32,7 +33,7 @@ class LinkServiceTest {
   private static final Instant NOW = Instant.parse("2026-08-05T00:00:00Z");
 
   @Mock private LinkRepository repository;
-  @Mock private RandomShortCodeGenerator codeGenerator;
+  @Mock private ShortCodeGenerator codeGenerator;
 
   private LinkService service;
   private ManagementTokenService tokenService;

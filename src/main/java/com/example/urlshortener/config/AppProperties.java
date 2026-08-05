@@ -23,7 +23,18 @@ public record AppProperties(
   public record Code(
       @DefaultValue("7") int length,
       @DefaultValue("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-          String alphabet) {}
+          String alphabet,
+      @DefaultValue("feistel") Strategy strategy,
+      // Key that parameterizes the Feistel permutation. Codes are not secret, so this is about
+      // making output non-sequential, not cryptographic secrecy. Override per environment to
+      // change the code ordering. Changing it after codes exist does not affect stored codes.
+      @DefaultValue("2654435769") long feistelKey) {
+
+    public enum Strategy {
+      FEISTEL,
+      RANDOM
+    }
+  }
 
   public record Cache(
       @DefaultValue("1h") Duration ttl, @DefaultValue("30s") Duration negativeTtl) {}

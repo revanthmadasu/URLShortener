@@ -24,7 +24,7 @@ public final class TestFixtures {
   public static AppProperties appProperties(int codeLength, boolean requireManagementToken) {
     return new AppProperties(
         "http://localhost:8080",
-        new Code(codeLength, ALPHABET),
+        new Code(codeLength, ALPHABET, Code.Strategy.FEISTEL, 2654435769L),
         new Cache(Duration.ofHours(1), Duration.ofSeconds(30)),
         new Security(requireManagementToken),
         new Redirect(List.of("http", "https"), true));
