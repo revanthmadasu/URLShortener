@@ -159,6 +159,40 @@ modules/data-flows each change touches and the risk to existing behavior before 
 
 🚦 **Sign-off:** Engineer to review 2A/2B/2C commits (three focused diffs).
 
+## Task 3 — Ambiguous requirement: "add analytics" *(scenario 3)*
+
+**Intent.** Turn an under-specified ask into a defensible spec, then build it. The value here is
+the *discipline*, not just the code.
+
+**Requirement understanding.** Produced an [ambiguity register](scenarios/ambiguous.md) (A1–A8):
+what counts as a click, what "unique" means, PII/IP retention, real-time vs batch, timezone
+buckets, dimensions, durability, and failure semantics — each decided with a rationale, then
+normalized into a spec and an [ADR-0004](adr/0004-analytics-click-model.md).
+
+**Decomposition & execution.**
+1. Config (`app.analytics.*`: enabled, ip-salt, retention).
+2. `click_events` schema keyed by `short_code` (works on the cache-hit path).
+3. Async capture (`@Async` virtual-thread executor) wired into `RedirectController` — only on a
+   successful 302, never blocking the redirect.
+4. Privacy: IP stored as `HMAC-SHA256(ip, salt)`, never raw.
+5. Stats API `GET /api/v1/links/{code}/stats?days=N` (total, unique, by-day, top referrers).
+6. Daily retention sweep (`@Scheduled`).
+7. Tests: unit (hashing, best-effort failure, stats) + web-slice + a full async IT (Awaitility).
+
+**Notable dispositions.**
+
+| Item | Disposition | Rationale |
+|---|---|---|
+| `days` param validation returned **500**, not 400 | ✏️ Edited | `@Validated` param constraints throw `ConstraintViolationException`, which the catch-all mapped to 500. Added an explicit handler → 400 problem+json. Caught by `StatsControllerTest.rejectsInvalidDaysParam`. |
+| `AnalyticsFlowIT` timed out waiting for `count()==3` | ✏️ Edited (real test-isolation bug) | Adding click capture made `LinkFlowIT`'s redirect record an event, but its cleanup only cleared `links`. Leftover events broke the analytics IT's exact-count await. Fixed both ITs' cleanup. A genuine cross-test coupling, surfaced only by running the full suite — not reproducible in isolation. |
+| Helper `anyInt()` wrapper in a test | ❌ Rejected | Replaced with a proper `import static ...anyInt`. |
+| Keying events by `link_id` | ❌ Rejected in design | Would force a row load on every redirect, defeating the cache. Keyed by `short_code` instead. |
+
+**Quality gate:** `./mvnw verify` → **98 unit + 5 integration passed.**
+
+🚦 **Sign-off:** Engineer to review; ambiguity register + ADR-0004 document the decisions taken.
+
 <!-- Subsequent tasks appended per phase. -->
+
 
 

@@ -3,6 +3,7 @@ package com.example.urlshortener.link;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.urlshortener.TestcontainersConfiguration;
+import com.example.urlshortener.analytics.ClickEventRepository;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -33,6 +34,7 @@ class LinkFlowIT {
 
   @LocalServerPort private int port;
   @Autowired private LinkRepository linkRepository;
+  @Autowired private ClickEventRepository clickEventRepository;
 
   private RestClient client() {
     // Do not follow redirects: we assert on the 302 itself.
@@ -42,6 +44,8 @@ class LinkFlowIT {
   @AfterEach
   void cleanup() {
     linkRepository.deleteAll();
+    // Redirects in this test record clicks asynchronously; clear them so other ITs stay isolated.
+    clickEventRepository.deleteAll();
   }
 
   @Test

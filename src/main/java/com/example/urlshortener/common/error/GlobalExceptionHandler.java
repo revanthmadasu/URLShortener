@@ -1,5 +1,6 @@
 package com.example.urlshortener.common.error;
 
+import jakarta.validation.ConstraintViolationException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -44,6 +46,16 @@ public class GlobalExceptionHandler {
     pd.setType(URI.create(TYPE_PREFIX + "validation-failed"));
     pd.setTitle("Bad Request");
     pd.setProperty("errors", errors);
+    return pd;
+  }
+
+  /** Method-level parameter validation (e.g. {@code @Min}/{@code @Max} on request params). */
+  @ExceptionHandler({HandlerMethodValidationException.class, ConstraintViolationException.class})
+  public ProblemDetail handleMethodValidation(Exception ex) {
+    ProblemDetail pd =
+        ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request validation failed");
+    pd.setType(URI.create(TYPE_PREFIX + "validation-failed"));
+    pd.setTitle("Bad Request");
     return pd;
   }
 

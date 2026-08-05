@@ -1,10 +1,14 @@
 package com.example.urlshortener.link;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.urlshortener.analytics.ClickAnalyticsService;
 import com.example.urlshortener.common.error.Errors;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +21,7 @@ class RedirectControllerTest {
 
   @Autowired private MockMvc mockMvc;
   @MockitoBean private LinkService linkService;
+  @MockitoBean private ClickAnalyticsService analytics;
 
   @Test
   void redirectsWith302AndLocation() throws Exception {
@@ -27,6 +32,9 @@ class RedirectControllerTest {
         .andExpect(status().isFound())
         .andExpect(header().string("Location", "https://example.com/page"))
         .andExpect(header().string("Cache-Control", "private, no-cache, max-age=0"));
+
+    // A successful redirect is a click and must be captured.
+    verify(analytics).recordAsync(any());
   }
 
   @Test
@@ -34,6 +42,7 @@ class RedirectControllerTest {
     when(linkService.resolveTargetUrl("missing")).thenThrow(new Errors.NotFound("nope"));
 
     mockMvc.perform(get("/missing")).andExpect(status().isNotFound());
+    verifyNoInteractions(analytics); // 404 is not a click
   }
 
   @Test
@@ -41,5 +50,6 @@ class RedirectControllerTest {
     when(linkService.resolveTargetUrl("expired")).thenThrow(new Errors.Gone("expired"));
 
     mockMvc.perform(get("/expired")).andExpect(status().isGone());
+    verifyNoInteractions(analytics); // 410 is not a click
   }
 }

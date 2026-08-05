@@ -12,9 +12,9 @@ and whether the residual risk is **Accepted** (a conscious trade-off) or **Mitig
 | R5 | **Custom-alias race** — two concurrent creates for same alias | M×M | DB unique constraint is the arbiter; catch constraint violation → 409. Never "check-then-insert" in app code alone. | Mitigated (Phase 1/2) |
 | R6 | **Short-code collision** as keyspace fills | L×M | Base62 length sized for headroom; Phase 2 switches to sequence+Feistel (collision-free by construction). | Mitigated (Phase 2) |
 | R7 | **Unbounded redirect scans** probing random codes | M×L | Negative cache for "not found"; rate limiting; codes are non-sequential to the client. | Mitigated |
-| R8 | **PII in analytics** (raw IPs) | M×M | Store a salted hash for uniqueness, not raw IP; define retention. Decided in Phase 3 ambiguity register. | Planned (Phase 3) |
+| R8 | **PII in analytics** (raw IPs) | M×M | Raw IP never stored — only `HMAC-SHA256(ip, salt)`; daily retention sweep deletes events older than `app.analytics.retention`. **Residual:** a salted hash is still linkable within a salt epoch (acceptable for counting). | Mitigated (Phase 3) |
 | R9 | **AI-introduced defect** slips into main | M×H | Quality gates (Spotless, SpotBugs, tests, JaCoCo, dep-check, mutation testing) + human sign-off on high-impact changes; contemporaneous traceability log. | Mitigated (Phase 4) |
-| R10 | **Expired links** still resolve | L×M | Expiry checked on read; expired → 410 Gone; excluded from cache or cached with short TTL. | Planned (Phase 1) |
+| R10 | **Expired links** still resolve | L×M | Expiry checked on read; expired → 410 Gone; positive cache TTL bounded by remaining lifetime so a cache hit can't serve an expired link. | Mitigated (Phase 1/2) |
 
 ## Validation strategy (summary)
 

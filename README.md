@@ -6,17 +6,36 @@ interview assignment demonstrating **AI-assisted software engineering** — see
 [`docs/`](docs/) for the architecture overview, decision records, scenario write-ups, and the
 [AI traceability log](docs/AI_TRACEABILITY.md).
 
-> **Status:** Phase 0 complete (scaffold, infra, CI). Feature work in progress — see
-> [`docs/AI_TRACEABILITY.md`](docs/AI_TRACEABILITY.md) for the live execution log.
+> **Status:** Phases 0–3 complete (core service, brownfield refactor/caching/security,
+> analytics). See [`docs/AI_TRACEABILITY.md`](docs/AI_TRACEABILITY.md) for the live execution log.
 
-## Features (target)
+## Features
 
-- `POST /api/v1/links` — shorten a URL (with optional custom alias + expiry)
-- `GET /{code}` — fast redirect (Redis cache-aside → Postgres)
+- `POST /api/v1/links` — shorten a URL (optional custom alias + expiry); returns a one-time
+  management token
+- `GET /{code}` — fast 302 redirect (Redis cache-aside → Postgres, graceful degradation)
 - `GET /api/v1/links/{code}` — link metadata
-- `DELETE /api/v1/links/{code}` — delete (guarded by a per-link management token)
-- `GET /api/v1/links/{code}/stats` — click analytics
-- Rate limiting, structured errors (RFC 9457 `application/problem+json`), health/metrics.
+- `DELETE /api/v1/links/{code}` — delete (guarded by the per-link management token)
+- `GET /api/v1/links/{code}/stats?days=N` — click analytics (total, unique, by-day, referrers)
+- Collision-free short codes (sequence + Feistel), SSRF/private-network guard, structured
+  errors (RFC 9457 `application/problem+json`), health/metrics.
+
+### Example
+
+```bash
+# Create
+curl -s -XPOST localhost:8080/api/v1/links \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://example.com/some/long/path"}'
+# -> 201 { "link": { "shortCode": "...", "shortUrl": "http://localhost:8080/..." },
+#          "managementToken": "..." }
+
+# Redirect
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' localhost:8080/<code>
+
+# Stats
+curl -s localhost:8080/api/v1/links/<code>/stats?days=7
+```
 
 ## Prerequisites
 

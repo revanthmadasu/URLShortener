@@ -31,7 +31,8 @@ public final class TestFixtures {
         new Code(codeLength, ALPHABET, Code.Strategy.FEISTEL, 2654435769L),
         new Cache(Duration.ofHours(1), Duration.ofSeconds(30)),
         new Security(requireManagementToken),
-        new Redirect(List.of("http", "https"), true));
+        new Redirect(List.of("http", "https"), true),
+        new AppProperties.Analytics(true, "test-salt", Duration.ofDays(90)));
   }
 
   /** A guard whose resolver always returns a public IP, so no host is ever blocked (no DNS). */

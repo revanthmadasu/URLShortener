@@ -32,7 +32,8 @@ class FeistelShortCodeGeneratorTest {
         new Code(length, alphabet, Code.Strategy.FEISTEL, 2654435769L),
         new Cache(Duration.ofHours(1), Duration.ofSeconds(30)),
         new Security(true),
-        new Redirect(List.of("http", "https"), true));
+        new Redirect(List.of("http", "https"), true),
+        new AppProperties.Analytics(true, "test-salt", Duration.ofDays(90)));
   }
 
   @Test

@@ -18,7 +18,8 @@ public record AppProperties(
     @DefaultValue Code code,
     @DefaultValue Cache cache,
     @DefaultValue Security security,
-    @DefaultValue Redirect redirect) {
+    @DefaultValue Redirect redirect,
+    @DefaultValue Analytics analytics) {
 
   public record Code(
       @DefaultValue("7") int length,
@@ -44,4 +45,12 @@ public record AppProperties(
   public record Redirect(
       @DefaultValue({"http", "https"}) List<String> allowedSchemes,
       @DefaultValue("true") boolean blockPrivateNetworks) {}
+
+  public record Analytics(
+      @DefaultValue("true") boolean enabled,
+      // Server-side secret used to HMAC visitor IPs. Raw IPs are never stored. Override in prod;
+      // rotating it starts a new uniqueness epoch (prior hashes no longer correlate).
+      @DefaultValue("change-me-in-production") String ipSalt,
+      // Click events older than this are purgeable by the retention sweep.
+      @DefaultValue("90d") Duration retention) {}
 }
