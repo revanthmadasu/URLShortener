@@ -6,11 +6,11 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Minimal thread-safe circuit breaker used to protect the redirect hot path from a slow or dead
- * cache. After {@code failureThreshold} consecutive failures the breaker <b>opens</b> and
- * {@link #allowRequest()} returns false for {@code openDuration}, so callers skip the failing
- * dependency (here: Redis) and go straight to the source of truth instead of paying a timeout on
- * every request. After the cooldown it moves to <b>half-open</b> and allows one trial; a success
- * closes it, a failure re-opens it.
+ * cache. After {@code failureThreshold} consecutive failures the breaker <b>opens</b> and {@link
+ * #allowRequest()} returns false for {@code openDuration}, so callers skip the failing dependency
+ * (here: Redis) and go straight to the source of truth instead of paying a timeout on every
+ * request. After the cooldown it moves to <b>half-open</b> and allows one trial; a success closes
+ * it, a failure re-opens it.
  *
  * <p>Deliberately dependency-free (no Resilience4j): the behavior needed here is small, and a
  * self-contained implementation is easy to unit-test deterministically with an injected clock.
@@ -37,7 +37,9 @@ public final class CircuitBreaker {
     this.clock = clock;
   }
 
-  /** @return true if the caller should attempt the protected operation. */
+  /**
+   * @return true if the caller should attempt the protected operation.
+   */
   public boolean allowRequest() {
     if (state == State.OPEN) {
       if (clock.millis() - openedAtMillis.get() >= openDurationMillis) {

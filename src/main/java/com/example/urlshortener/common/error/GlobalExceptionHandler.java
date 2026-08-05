@@ -10,10 +10,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 /**
  * Translates exceptions into RFC 9457 {@code application/problem+json} responses. Keeps error
@@ -39,7 +39,8 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors().stream()
             .map(
                 (FieldError fe) ->
-                    Map.of("field", fe.getField(), "message", String.valueOf(fe.getDefaultMessage())))
+                    Map.of(
+                        "field", fe.getField(), "message", String.valueOf(fe.getDefaultMessage())))
             .toList();
     ProblemDetail pd =
         ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request validation failed");

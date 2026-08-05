@@ -11,7 +11,8 @@ class RandomShortCodeGeneratorTest {
 
   @Test
   void generatesCodesOfConfiguredLengthFromAlphabet() {
-    RandomShortCodeGenerator gen = new RandomShortCodeGenerator(TestFixtures.appProperties(7, true));
+    RandomShortCodeGenerator gen =
+        new RandomShortCodeGenerator(TestFixtures.appProperties(7, true));
     for (int i = 0; i < 1000; i++) {
       String code = gen.generate();
       assertThat(code).hasSize(7);
@@ -21,7 +22,8 @@ class RandomShortCodeGeneratorTest {
 
   @Test
   void producesHighlyUniqueCodes() {
-    RandomShortCodeGenerator gen = new RandomShortCodeGenerator(TestFixtures.appProperties(7, true));
+    RandomShortCodeGenerator gen =
+        new RandomShortCodeGenerator(TestFixtures.appProperties(7, true));
     Set<String> seen = new HashSet<>();
     int n = 10_000;
     for (int i = 0; i < n; i++) {

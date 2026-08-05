@@ -6,14 +6,14 @@ import org.springframework.stereotype.Component;
 
 /**
  * Decides whether a destination host resolves into a range we refuse to shorten: loopback,
- * private/site-local, link-local (including the cloud metadata address 169.254.169.254),
- * wildcard, multicast, or IPv6 unique-local. This limits the shortener from being used to reach
- * internal infrastructure (SSRF/open-redirect hardening — risk R3).
+ * private/site-local, link-local (including the cloud metadata address 169.254.169.254), wildcard,
+ * multicast, or IPv6 unique-local. This limits the shortener from being used to reach internal
+ * infrastructure (SSRF/open-redirect hardening — risk R3).
  *
- * <p><b>Honest scope.</b> The service 302-redirects the caller's client; it does not fetch the
- * URL itself, so this is defense-in-depth rather than a complete SSRF control. It is also
- * evaluated at creation time, so it cannot prevent <i>DNS rebinding</i> (a name that resolves
- * public now and private at click time). Both limitations are documented in the risk register.
+ * <p><b>Honest scope.</b> The service 302-redirects the caller's client; it does not fetch the URL
+ * itself, so this is defense-in-depth rather than a complete SSRF control. It is also evaluated at
+ * creation time, so it cannot prevent <i>DNS rebinding</i> (a name that resolves public now and
+ * private at click time). Both limitations are documented in the risk register.
  *
  * <p>The DNS resolver is injected so the range logic is unit-testable without real lookups.
  */

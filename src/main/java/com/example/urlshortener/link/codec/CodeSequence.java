@@ -4,9 +4,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Supplies the next value of the {@code link_code_seq} Postgres sequence. Sequence advancement
- * is non-transactional in Postgres (a fetched value is never reused, even on rollback), which
- * is exactly what the Feistel codec needs: a dense, ever-increasing, gap-tolerant counter.
+ * Supplies the next value of the {@code link_code_seq} Postgres sequence. Sequence advancement is
+ * non-transactional in Postgres (a fetched value is never reused, even on rollback), which is
+ * exactly what the Feistel codec needs: a dense, ever-increasing, gap-tolerant counter.
  */
 @Component
 public class CodeSequence {

@@ -12,9 +12,9 @@ import org.springframework.stereotype.Component;
  * Validates destination URLs before they are stored.
  *
  * <p>Checks, in order: syntactic validity, an absolute URL, a present host, a scheme on the
- * allowlist (http/https — blocks {@code javascript:}, {@code data:}, {@code file:}, …), and,
- * when {@code app.redirect.block-private-networks} is enabled, that the host does not resolve
- * to a private/loopback/link-local/metadata range (see {@link PrivateNetworkGuard}, risk R3).
+ * allowlist (http/https — blocks {@code javascript:}, {@code data:}, {@code file:}, …), and, when
+ * {@code app.redirect.block-private-networks} is enabled, that the host does not resolve to a
+ * private/loopback/link-local/metadata range (see {@link PrivateNetworkGuard}, risk R3).
  */
 @Component
 public class UrlValidator {

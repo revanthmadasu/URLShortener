@@ -1,9 +1,9 @@
 package com.example.urlshortener.link.codec;
 
 /**
- * Fixed-length base-N encoding over a caller-supplied alphabet. Used to render a numeric code
- * value as a short string of exactly {@code length} characters (left-padded with the first
- * alphabet symbol), so all generated codes share a uniform width.
+ * Fixed-length base-N encoding over a caller-supplied alphabet. Used to render a numeric code value
+ * as a short string of exactly {@code length} characters (left-padded with the first alphabet
+ * symbol), so all generated codes share a uniform width.
  */
 public final class Base62 {
 

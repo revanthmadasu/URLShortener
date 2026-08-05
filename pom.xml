@@ -28,6 +28,13 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<spotless.version>2.43.0</spotless.version>
+		<jacoco.version>0.8.12</jacoco.version>
+		<spotbugs.version>4.8.6.6</spotbugs.version>
+		<pitest.version>1.16.3</pitest.version>
+		<dependency-check.version>10.0.4</dependency-check.version>
+		<!-- Minimum line coverage enforced by the JaCoCo gate (business packages). -->
+		<coverage.line.min>0.75</coverage.line.min>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -145,6 +152,80 @@
 					</execution>
 				</executions>
 			</plugin>
+
+			<!-- Spotless: enforce google-java-format. `mvn spotless:apply` fixes; `check`
+			     (bound to verify) fails the build on unformatted code. -->
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>${spotless.version}</version>
+				<configuration>
+					<java>
+						<googleJavaFormat>
+							<version>1.22.0</version>
+						</googleJavaFormat>
+						<removeUnusedImports/>
+						<importOrder/>
+					</java>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- JaCoCo: coverage report + a line-coverage gate over business packages. -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<configuration>
+					<excludes>
+						<exclude>**/UrlshortenerApplication.*</exclude>
+						<exclude>**/config/**</exclude>
+						<exclude>**/dto/**</exclude>
+					</excludes>
+				</configuration>
+				<executions>
+					<execution>
+						<id>prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>coverage-gate</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>${coverage.line.min}</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -168,5 +249,97 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<!-- Heavier gates are opt-in profiles so the default build stays fast. See docs/TESTING.md. -->
+	<profiles>
+		<!-- Static analysis: `mvn -Pspotbugs verify` -->
+		<profile>
+			<id>spotbugs</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>com.github.spotbugs</groupId>
+						<artifactId>spotbugs-maven-plugin</artifactId>
+						<version>${spotbugs.version}</version>
+						<configuration>
+							<effort>Max</effort>
+							<threshold>Medium</threshold>
+							<includeTests>false</includeTests>
+						</configuration>
+						<executions>
+							<execution>
+								<phase>verify</phase>
+								<goals>
+									<goal>check</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<!-- Mutation testing: `mvn -Pmutation test` (gauges test effectiveness, not just coverage). -->
+		<profile>
+			<id>mutation</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.pitest</groupId>
+						<artifactId>pitest-maven</artifactId>
+						<version>${pitest.version}</version>
+						<configuration>
+							<targetClasses>
+								<param>com.example.urlshortener.link.codec.*</param>
+								<param>com.example.urlshortener.link.LinkService</param>
+								<param>com.example.urlshortener.common.*</param>
+							</targetClasses>
+							<targetTests>
+								<param>com.example.urlshortener.*</param>
+							</targetTests>
+							<mutationThreshold>70</mutationThreshold>
+							<excludedTestClasses>
+								<param>*IT</param>
+							</excludedTestClasses>
+						</configuration>
+						<dependencies>
+							<dependency>
+								<groupId>org.pitest</groupId>
+								<artifactId>pitest-junit5-plugin</artifactId>
+								<version>1.2.1</version>
+							</dependency>
+						</dependencies>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<!-- Dependency vulnerability scan (OWASP): `mvn -Psecurity verify`.
+		     Needs an NVD API key (env NVD_API_KEY) and is slow on first run. -->
+		<profile>
+			<id>security</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.owasp</groupId>
+						<artifactId>dependency-check-maven</artifactId>
+						<version>${dependency-check.version}</version>
+						<configuration>
+							<failBuildOnCVSS>7</failBuildOnCVSS>
+							<nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+						</configuration>
+						<executions>
+							<execution>
+								<phase>verify</phase>
+								<goals>
+									<goal>check</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>

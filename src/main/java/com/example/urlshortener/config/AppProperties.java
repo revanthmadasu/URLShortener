@@ -8,9 +8,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 /**
  * Strongly-typed application configuration bound from the {@code app.*} namespace.
  *
- * <p>Using an immutable record keeps configuration explicit and testable: every knob the
- * service exposes lives here with a default, rather than being scattered across
- * {@code @Value} injections.
+ * <p>Using an immutable record keeps configuration explicit and testable: every knob the service
+ * exposes lives here with a default, rather than being scattered across {@code @Value} injections.
  */
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(
@@ -19,7 +18,8 @@ public record AppProperties(
     @DefaultValue Cache cache,
     @DefaultValue Security security,
     @DefaultValue Redirect redirect,
-    @DefaultValue Analytics analytics) {
+    @DefaultValue Analytics analytics,
+    @DefaultValue RateLimit rateLimit) {
 
   public record Code(
       @DefaultValue("7") int length,
@@ -53,4 +53,10 @@ public record AppProperties(
       @DefaultValue("change-me-in-production") String ipSalt,
       // Click events older than this are purgeable by the retention sweep.
       @DefaultValue("90d") Duration retention) {}
+
+  public record RateLimit(
+      @DefaultValue("true") boolean enabled,
+      // Token-bucket capacity (burst) and refill window, applied per client IP to write requests.
+      @DefaultValue("20") int capacity,
+      @DefaultValue("1m") Duration refillPeriod) {}
 }

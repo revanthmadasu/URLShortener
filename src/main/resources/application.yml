@@ -87,5 +87,13 @@ management:
       enabled: false
 
 logging:
+  # Include the request-correlation id (set by RequestIdFilter) in every line.
+  pattern:
+    level: "%5p [%X{requestId:-}]"
   level:
     com.example.urlshortener: INFO
+    # The create path uses insert-and-catch on the unique index (see LinkService); the resulting
+    # constraint-violation SQL warnings are expected control flow, not incidents. Quiet them so
+    # real SQL errors stand out. The 409/collision handling is still fully exercised by tests.
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: 'OFF'
+    org.hibernate.orm.jdbc.error: 'OFF'

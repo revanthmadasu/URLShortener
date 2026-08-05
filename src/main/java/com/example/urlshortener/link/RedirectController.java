@@ -13,11 +13,11 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Serves the public redirect: {@code GET /{code}} → 302 to the destination.
  *
- * <p><b>Why 302 (Found), not 301 (Moved Permanently).</b> A 301 is aggressively cached by
- * browsers and intermediaries, which would prevent the service from observing subsequent
- * clicks — fatal for the analytics feature. A 302 keeps the code reaching the server on every
- * hit. We also mark the response non-cacheable for the same reason. The hot-path Redis cache
- * keeps the per-redirect cost low.
+ * <p><b>Why 302 (Found), not 301 (Moved Permanently).</b> A 301 is aggressively cached by browsers
+ * and intermediaries, which would prevent the service from observing subsequent clicks — fatal for
+ * the analytics feature. A 302 keeps the code reaching the server on every hit. We also mark the
+ * response non-cacheable for the same reason. The hot-path Redis cache keeps the per-redirect cost
+ * low.
  *
  * <p>The path variable is constrained to the code charset so this mapping does not swallow asset
  * requests (e.g. {@code /favicon.ico}) or the {@code /api} and {@code /actuator} trees.
@@ -40,7 +40,10 @@ public class RedirectController {
     // Only successful redirects are clicks (decision A1). Capture is async and best-effort.
     analytics.recordAsync(
         new ClickContext(
-            code, clientIp(request), request.getHeader("User-Agent"), request.getHeader("Referer")));
+            code,
+            clientIp(request),
+            request.getHeader("User-Agent"),
+            request.getHeader("Referer")));
 
     return ResponseEntity.status(HttpStatus.FOUND)
         .header(HttpHeaders.LOCATION, targetUrl)

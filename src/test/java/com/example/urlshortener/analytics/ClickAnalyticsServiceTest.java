@@ -34,7 +34,8 @@ class ClickAnalyticsServiceTest {
   void recordsClickWithHashedIpNotRawIp() {
     ClickAnalyticsService service = service();
 
-    service.recordAsync(new ClickContext("abc1234", "203.0.113.7", "curl/8", "https://ref.example"));
+    service.recordAsync(
+        new ClickContext("abc1234", "203.0.113.7", "curl/8", "https://ref.example"));
 
     ArgumentCaptor<ClickEvent> captor = ArgumentCaptor.forClass(ClickEvent.class);
     verify(repository).save(captor.capture());

@@ -32,7 +32,21 @@ public final class TestFixtures {
         new Cache(Duration.ofHours(1), Duration.ofSeconds(30)),
         new Security(requireManagementToken),
         new Redirect(List.of("http", "https"), true),
-        new AppProperties.Analytics(true, "test-salt", Duration.ofDays(90)));
+        new AppProperties.Analytics(true, "test-salt", Duration.ofDays(90)),
+        new AppProperties.RateLimit(true, 20, Duration.ofMinutes(1)));
+  }
+
+  /** Base properties with the code alphabet/length overridden (keeps all other defaults). */
+  public static AppProperties appPropertiesWithCode(String alphabet, int length) {
+    AppProperties base = appProperties();
+    return new AppProperties(
+        base.baseUrl(),
+        new Code(length, alphabet, Code.Strategy.FEISTEL, base.code().feistelKey()),
+        base.cache(),
+        base.security(),
+        base.redirect(),
+        base.analytics(),
+        base.rateLimit());
   }
 
   /** A guard whose resolver always returns a public IP, so no host is ever blocked (no DNS). */

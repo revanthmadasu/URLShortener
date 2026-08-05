@@ -13,9 +13,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Proves the redirect path is genuinely cache-aside against real Redis + Postgres: once a code
- * is cached, a redirect is served even after the underlying row is removed out-of-band (i.e.
- * without going through {@code LinkService.delete}, which would evict). Requires Docker.
+ * Proves the redirect path is genuinely cache-aside against real Redis + Postgres: once a code is
+ * cached, a redirect is served even after the underlying row is removed out-of-band (i.e. without
+ * going through {@code LinkService.delete}, which would evict). Requires Docker.
  */
 @Tag("integration")
 @Import(TestcontainersConfiguration.class)

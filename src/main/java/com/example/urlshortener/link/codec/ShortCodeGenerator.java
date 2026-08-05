@@ -5,13 +5,13 @@ package com.example.urlshortener.link.codec;
  *
  * <ul>
  *   <li>{@code RandomShortCodeGenerator} — random base62; may self-collide, needs retry.
- *   <li>{@code FeistelShortCodeGenerator} — sequence + Feistel permutation; unique by
- *       construction, non-sequential output.
+ *   <li>{@code FeistelShortCodeGenerator} — sequence + Feistel permutation; unique by construction,
+ *       non-sequential output.
  * </ul>
  *
- * Selected via {@code app.code.strategy}. Regardless of strategy, the database unique index
- * remains the authority on uniqueness, because generated codes and user-supplied custom
- * aliases share one namespace (see the brownfield scenario notes).
+ * Selected via {@code app.code.strategy}. Regardless of strategy, the database unique index remains
+ * the authority on uniqueness, because generated codes and user-supplied custom aliases share one
+ * namespace (see the brownfield scenario notes).
  */
 public interface ShortCodeGenerator {
 

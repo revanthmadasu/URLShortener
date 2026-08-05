@@ -17,7 +17,8 @@ public final class Errors {
   /** 409 — the requested custom alias is already taken. */
   public static final class AliasConflict extends ApiException {
     public AliasConflict(String alias) {
-      super(HttpStatus.CONFLICT, "alias-conflict", "Custom alias '" + alias + "' is already in use");
+      super(
+          HttpStatus.CONFLICT, "alias-conflict", "Custom alias '" + alias + "' is already in use");
     }
   }
 
@@ -53,6 +54,13 @@ public final class Errors {
   public static final class Gone extends ApiException {
     public Gone(String detail) {
       super(HttpStatus.GONE, "link-expired", detail);
+    }
+  }
+
+  /** 429 — the client has exceeded the request rate limit. */
+  public static final class RateLimited extends ApiException {
+    public RateLimited(String detail) {
+      super(HttpStatus.TOO_MANY_REQUESTS, "rate-limited", detail);
     }
   }
 }

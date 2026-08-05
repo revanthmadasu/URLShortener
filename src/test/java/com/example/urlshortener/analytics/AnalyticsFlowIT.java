@@ -59,9 +59,7 @@ class AnalyticsFlowIT {
     hit(code, "2.2.2.2", "https://b.example");
 
     // Capture is async; wait until all 3 events are persisted.
-    await()
-        .atMost(Duration.ofSeconds(10))
-        .until(() -> clickEventRepository.count() == 3L);
+    await().atMost(Duration.ofSeconds(10)).until(() -> clickEventRepository.count() == 3L);
 
     ClickStatsResponse stats =
         client()

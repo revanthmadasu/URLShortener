@@ -8,13 +8,13 @@ import java.time.Instant;
 /**
  * Request to create a short link.
  *
- * @param url the destination URL. Required; must be a syntactically valid absolute URL. The
- *     scheme allowlist and SSRF/private-network checks are enforced in the service layer (see
- *     {@code UrlValidator}) because they are policy, not mere syntax.
+ * @param url the destination URL. Required; must be a syntactically valid absolute URL. The scheme
+ *     allowlist and SSRF/private-network checks are enforced in the service layer (see {@code
+ *     UrlValidator}) because they are policy, not mere syntax.
  * @param customAlias optional caller-chosen code. Restricted to a URL-safe charset and a sane
  *     length. If absent, a code is generated.
- * @param expiresAt optional expiry instant (UTC). If absent, the link never expires. Must be
- *     in the future — validated in the service layer against the request-time clock.
+ * @param expiresAt optional expiry instant (UTC). If absent, the link never expires. Must be in the
+ *     future — validated in the service layer against the request-time clock.
  */
 public record CreateLinkRequest(
     @NotBlank(message = "url is required")

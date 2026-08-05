@@ -4,12 +4,12 @@ import com.example.urlshortener.config.AppProperties;
 import java.security.SecureRandom;
 
 /**
- * Legacy random base-N generator, retained as a selectable strategy
- * ({@code app.code.strategy=random}) and as a baseline for comparison.
+ * Legacy random base-N generator, retained as a selectable strategy ({@code
+ * app.code.strategy=random}) and as a baseline for comparison.
  *
  * <p>It can produce a code that already exists, so callers must handle the unique-constraint
- * violation and retry; as the keyspace fills, retries increase. The default strategy is
- * {@link FeistelShortCodeGenerator}, which avoids self-collision entirely.
+ * violation and retry; as the keyspace fills, retries increase. The default strategy is {@link
+ * FeistelShortCodeGenerator}, which avoids self-collision entirely.
  */
 public class RandomShortCodeGenerator implements ShortCodeGenerator {
 

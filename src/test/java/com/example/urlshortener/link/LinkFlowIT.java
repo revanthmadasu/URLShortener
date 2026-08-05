@@ -4,11 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.urlshortener.TestcontainersConfiguration;
 import com.example.urlshortener.analytics.ClickEventRepository;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -23,9 +23,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
 
 /**
- * Full end-to-end flow against real Postgres + Redis (Testcontainers): create → redirect →
- * fetch → delete, plus the concurrent custom-alias race. Runs under Failsafe ({@code *IT});
- * requires Docker.
+ * Full end-to-end flow against real Postgres + Redis (Testcontainers): create → redirect → fetch →
+ * delete, plus the concurrent custom-alias race. Runs under Failsafe ({@code *IT}); requires
+ * Docker.
  */
 @Tag("integration")
 @Import(TestcontainersConfiguration.class)
@@ -67,8 +67,7 @@ class LinkFlowIT {
     assertThat(token).isNotBlank();
 
     // --- redirect (302, no auto-follow) ---
-    ResponseEntity<Void> redirect =
-        client().get().uri("/" + code).retrieve().toBodilessEntity();
+    ResponseEntity<Void> redirect = client().get().uri("/" + code).retrieve().toBodilessEntity();
     assertThat(redirect.getStatusCode()).isEqualTo(HttpStatus.FOUND);
     assertThat(redirect.getHeaders().getFirst(HttpHeaders.LOCATION))
         .isEqualTo("https://example.com/landing");

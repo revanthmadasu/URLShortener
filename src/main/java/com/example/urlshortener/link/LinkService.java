@@ -1,6 +1,7 @@
 package com.example.urlshortener.link;
 
 import com.example.urlshortener.common.error.Errors;
+import com.example.urlshortener.common.metrics.AppMetrics;
 import com.example.urlshortener.common.security.ManagementTokenService;
 import com.example.urlshortener.common.security.ManagementTokenService.IssuedToken;
 import com.example.urlshortener.config.AppProperties;
@@ -27,9 +28,9 @@ import org.springframework.stereotype.Service;
  * </ul>
  *
  * Each {@code saveAndFlush} runs in its own repository-managed transaction, so a failed attempt
- * rolls back cleanly and the next attempt starts fresh. This is why {@code create} is not
- * annotated {@code @Transactional}: an enclosing transaction would be poisoned by the first
- * constraint violation and could not retry.
+ * rolls back cleanly and the next attempt starts fresh. This is why {@code create} is not annotated
+ * {@code @Transactional}: an enclosing transaction would be poisoned by the first constraint
+ * violation and could not retry.
  */
 @Service
 public class LinkService {
@@ -44,6 +45,7 @@ public class LinkService {
   private final UrlValidator urlValidator;
   private final ManagementTokenService tokenService;
   private final RedirectCache cache;
+  private final AppMetrics metrics;
   private final AppProperties properties;
   private final Clock clock;
 
@@ -53,6 +55,7 @@ public class LinkService {
       UrlValidator urlValidator,
       ManagementTokenService tokenService,
       RedirectCache cache,
+      AppMetrics metrics,
       AppProperties properties,
       Clock clock) {
     this.repository = repository;
@@ -60,6 +63,7 @@ public class LinkService {
     this.urlValidator = urlValidator;
     this.tokenService = tokenService;
     this.cache = cache;
+    this.metrics = metrics;
     this.properties = properties;
     this.clock = clock;
   }
@@ -77,12 +81,14 @@ public class LinkService {
             ? insertWithAlias(request.customAlias(), normalizedUrl, token.hash(), expiresAt)
             : insertWithGeneratedCode(normalizedUrl, token.hash(), expiresAt);
 
+    metrics.linkCreated();
     return new CreateResult(saved, token.token());
   }
 
   private Link insertWithAlias(String alias, String url, String tokenHash, Instant expiresAt) {
     try {
-      return repository.saveAndFlush(Link.create(alias, url, tokenHash, clock.instant(), expiresAt));
+      return repository.saveAndFlush(
+          Link.create(alias, url, tokenHash, clock.instant(), expiresAt));
     } catch (DataIntegrityViolationException e) {
       throw new Errors.AliasConflict(alias);
     }
@@ -92,9 +98,11 @@ public class LinkService {
     for (int attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
       String code = codeGenerator.generate();
       try {
-        return repository.saveAndFlush(Link.create(code, url, tokenHash, clock.instant(), expiresAt));
+        return repository.saveAndFlush(
+            Link.create(code, url, tokenHash, clock.instant(), expiresAt));
       } catch (DataIntegrityViolationException e) {
-        log.warn("Short-code collision on '{}' (attempt {}/{})", code, attempt, MAX_GENERATION_ATTEMPTS);
+        log.warn(
+            "Short-code collision on '{}' (attempt {}/{})", code, attempt, MAX_GENERATION_ATTEMPTS);
       }
     }
     throw new Errors.CodeExhausted(
@@ -113,12 +121,14 @@ public class LinkService {
     RedirectCache.Lookup cached = cache.lookup(code);
     switch (cached.kind()) {
       case HIT -> {
+        metrics.cacheHit();
         return cached.url();
       }
-      case NEGATIVE -> throw notFound(code);
-      case MISS -> {
-        // fall through to the source of truth
+      case NEGATIVE -> {
+        metrics.cacheNegative();
+        throw notFound(code);
       }
+      case MISS -> metrics.cacheMiss();
     }
 
     final Link link;
@@ -160,9 +170,9 @@ public class LinkService {
   }
 
   /**
-   * Delete a link. When {@code app.security.require-management-token} is enabled, a matching
-   * token must be supplied. Returns quietly on success; throws 404 if the code is unknown and
-   * 403 if the token is required but missing/incorrect.
+   * Delete a link. When {@code app.security.require-management-token} is enabled, a matching token
+   * must be supplied. Returns quietly on success; throws 404 if the code is unknown and 403 if the
+   * token is required but missing/incorrect.
    */
   public void delete(String code, String presentedToken) {
     Link link = repository.findByShortCode(code).orElseThrow(() -> notFound(code));

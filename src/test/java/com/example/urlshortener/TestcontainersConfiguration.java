@@ -11,8 +11,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Testcontainers wiring for integration tests. Image versions are pinned to the same
- * versions used in {@code docker-compose.yml} so tests exercise the real target runtime.
+ * Testcontainers wiring for integration tests. Image versions are pinned to the same versions used
+ * in {@code docker-compose.yml} so tests exercise the real target runtime.
  */
 @TestConfiguration(proxyBeanMethods = false)
 public class TestcontainersConfiguration {
@@ -39,6 +39,7 @@ public class TestcontainersConfiguration {
   @Bean
   @Primary
   PrivateNetworkGuard testPrivateNetworkGuard() {
-    return new PrivateNetworkGuard(host -> new InetAddress[] {InetAddress.getByName("93.184.216.34")});
+    return new PrivateNetworkGuard(
+        host -> new InetAddress[] {InetAddress.getByName("93.184.216.34")});
   }
 }

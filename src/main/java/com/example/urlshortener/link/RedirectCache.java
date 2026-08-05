@@ -9,13 +9,13 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Redis-backed cache for the redirect hot path (code → destination URL), with a negative cache
- * for unknown codes.
+ * Redis-backed cache for the redirect hot path (code → destination URL), with a negative cache for
+ * unknown codes.
  *
- * <p><b>Redis is optional.</b> Every operation is wrapped so that any Redis failure degrades to
- * a cache miss (the caller then uses Postgres) rather than surfacing an error. A
- * {@link CircuitBreaker} ensures that once Redis is failing, we stop attempting it (and paying
- * its timeout) on every request until a cooldown elapses. This is why Redis is excluded from the
+ * <p><b>Redis is optional.</b> Every operation is wrapped so that any Redis failure degrades to a
+ * cache miss (the caller then uses Postgres) rather than surfacing an error. A {@link
+ * CircuitBreaker} ensures that once Redis is failing, we stop attempting it (and paying its
+ * timeout) on every request until a cooldown elapses. This is why Redis is excluded from the
  * health/liveness check — its outage slows redirects, it does not break them.
  */
 @Component
@@ -24,8 +24,8 @@ public class RedirectCache {
   private static final Logger log = LoggerFactory.getLogger(RedirectCache.class);
 
   /**
-   * Sentinel stored for known-absent codes. Cannot collide with a real cached value because
-   * every cached URL is validated to carry an http/https scheme (contains "://").
+   * Sentinel stored for known-absent codes. Cannot collide with a real cached value because every
+   * cached URL is validated to carry an http/https scheme (contains "://").
    */
   private static final String NEGATIVE = "__NEGATIVE__";
 

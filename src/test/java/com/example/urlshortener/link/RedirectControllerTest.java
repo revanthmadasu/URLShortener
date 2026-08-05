@@ -10,13 +10,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.urlshortener.analytics.ClickAnalyticsService;
 import com.example.urlshortener.common.error.Errors;
+import com.example.urlshortener.config.WebConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(RedirectController.class)
+@WebMvcTest(
+    controllers = RedirectController.class,
+    excludeFilters =
+        @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = WebConfig.class))
 class RedirectControllerTest {
 
   @Autowired private MockMvc mockMvc;

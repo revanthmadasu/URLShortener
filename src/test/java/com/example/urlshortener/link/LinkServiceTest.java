@@ -11,12 +11,14 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.example.urlshortener.common.error.Errors;
+import com.example.urlshortener.common.metrics.AppMetrics;
 import com.example.urlshortener.common.security.ManagementTokenService;
 import com.example.urlshortener.common.security.ManagementTokenService.IssuedToken;
-import com.example.urlshortener.link.codec.ShortCodeGenerator;
 import com.example.urlshortener.link.LinkService.CreateResult;
+import com.example.urlshortener.link.codec.ShortCodeGenerator;
 import com.example.urlshortener.link.dto.CreateLinkRequest;
 import com.example.urlshortener.support.TestFixtures;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -52,6 +54,7 @@ class LinkServiceTest {
             TestFixtures.urlValidator(),
             tokenService,
             cache,
+            new AppMetrics(new SimpleMeterRegistry()),
             TestFixtures.appProperties(),
             Clock.fixed(NOW, ZoneOffset.UTC));
   }
@@ -79,7 +82,9 @@ class LinkServiceTest {
       assertThat(result.link().getLongUrl()).isEqualTo("https://example.com");
       assertThat(result.managementToken()).isNotBlank();
       // The stored hash must correspond to the returned token, and not equal it.
-      assertThat(tokenService.matches(result.managementToken(), result.link().getManagementTokenHash()))
+      assertThat(
+              tokenService.matches(
+                  result.managementToken(), result.link().getManagementTokenHash()))
           .isTrue();
     }
 
@@ -146,8 +151,7 @@ class LinkServiceTest {
       repoEchoesOnSave();
       when(codeGenerator.generate()).thenReturn("abc1234");
 
-      CreateResult result =
-          service.create(req("https://example.com", null, NOW.plusSeconds(3600)));
+      CreateResult result = service.create(req("https://example.com", null, NOW.plusSeconds(3600)));
 
       assertThat(result.link().getExpiresAt()).isEqualTo(NOW.plusSeconds(3600));
     }
@@ -175,7 +179,8 @@ class LinkServiceTest {
     @Test
     void expiredLinkBecomes410() {
       Link expired =
-          Link.create("abc1234", "https://example.com", "hash", NOW.minusSeconds(10), NOW.minusSeconds(1));
+          Link.create(
+              "abc1234", "https://example.com", "hash", NOW.minusSeconds(10), NOW.minusSeconds(1));
       when(repository.findByShortCode("abc1234")).thenReturn(Optional.of(expired));
 
       assertThatThrownBy(() -> service.resolveForRedirect("abc1234"))
@@ -185,7 +190,8 @@ class LinkServiceTest {
     @Test
     void getByCodeReturnsExpiredLinkAsMetadata() {
       Link expired =
-          Link.create("abc1234", "https://example.com", "hash", NOW.minusSeconds(10), NOW.minusSeconds(1));
+          Link.create(
+              "abc1234", "https://example.com", "hash", NOW.minusSeconds(10), NOW.minusSeconds(1));
       when(repository.findByShortCode("abc1234")).thenReturn(Optional.of(expired));
 
       assertThat(service.getByCode("abc1234")).isSameAs(expired);
@@ -236,11 +242,11 @@ class LinkServiceTest {
     void expiredLinkIsNeverCachedPositively() {
       when(cache.lookup("abc1234")).thenReturn(RedirectCache.Lookup.miss());
       Link expired =
-          Link.create("abc1234", "https://example.com", "hash", NOW.minusSeconds(10), NOW.minusSeconds(1));
+          Link.create(
+              "abc1234", "https://example.com", "hash", NOW.minusSeconds(10), NOW.minusSeconds(1));
       when(repository.findByShortCode("abc1234")).thenReturn(Optional.of(expired));
 
-      assertThatThrownBy(() -> service.resolveTargetUrl("abc1234"))
-          .isInstanceOf(Errors.Gone.class);
+      assertThatThrownBy(() -> service.resolveTargetUrl("abc1234")).isInstanceOf(Errors.Gone.class);
       verify(cache, never()).putPositive(any(), any(), any());
     }
 
@@ -254,7 +260,8 @@ class LinkServiceTest {
 
       service.resolveTargetUrl("abc1234");
 
-      org.mockito.ArgumentCaptor<Duration> ttl = org.mockito.ArgumentCaptor.forClass(Duration.class);
+      org.mockito.ArgumentCaptor<Duration> ttl =
+          org.mockito.ArgumentCaptor.forClass(Duration.class);
       verify(cache).putPositive(eq("abc1234"), eq("https://example.com"), ttl.capture());
       assertThat(ttl.getValue()).isLessThanOrEqualTo(Duration.ofSeconds(600));
     }
@@ -276,7 +283,8 @@ class LinkServiceTest {
 
     @Test
     void rejectsInvalidToken() {
-      Link link = Link.create("abc1234", "https://example.com", tokenService.issue().hash(), NOW, null);
+      Link link =
+          Link.create("abc1234", "https://example.com", tokenService.issue().hash(), NOW, null);
       when(repository.findByShortCode("abc1234")).thenReturn(Optional.of(link));
 
       assertThatThrownBy(() -> service.delete("abc1234", "wrong-token"))
@@ -301,6 +309,7 @@ class LinkServiceTest {
               TestFixtures.urlValidator(),
               tokenService,
               cache,
+              new AppMetrics(new SimpleMeterRegistry()),
               TestFixtures.appProperties(7, false),
               Clock.fixed(NOW, ZoneOffset.UTC));
       Link link = Link.create("abc1234", "https://example.com", "hash", NOW, null);

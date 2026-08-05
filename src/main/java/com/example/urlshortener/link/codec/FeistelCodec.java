@@ -4,18 +4,17 @@ package com.example.urlshortener.link.codec;
  * Format-preserving permutation of a dense counter into a non-sequential code value, using a
  * balanced <b>Feistel network</b> plus <b>cycle-walking</b> to stay within an arbitrary domain.
  *
- * <p><b>Why.</b> We want short codes that are (a) unique by construction — so no collision
- * retries as the keyspace fills — and (b) non-sequential, so a public code does not leak the
- * creation order or the total number of links. A Feistel network is a bijection over
- * {@code [0, 2^bits)} for <i>any</i> round function, which gives uniqueness for free. Cycle-
- * walking restricts that bijection to {@code [0, domain)} where {@code domain = alphabet^length}
- * is not a power of two.
+ * <p><b>Why.</b> We want short codes that are (a) unique by construction — so no collision retries
+ * as the keyspace fills — and (b) non-sequential, so a public code does not leak the creation order
+ * or the total number of links. A Feistel network is a bijection over {@code [0, 2^bits)} for
+ * <i>any</i> round function, which gives uniqueness for free. Cycle- walking restricts that
+ * bijection to {@code [0, domain)} where {@code domain = alphabet^length} is not a power of two.
  *
- * <p><b>Not cryptography.</b> The round function is a fast mixing function, not a secure PRF.
- * Codes are public identifiers, not secrets; the only goal is non-sequentiality.
+ * <p><b>Not cryptography.</b> The round function is a fast mixing function, not a secure PRF. Codes
+ * are public identifiers, not secrets; the only goal is non-sequentiality.
  *
- * <p>The mapping is a bijection, so {@code encode} is injective: distinct inputs in
- * {@code [0, domain)} always yield distinct outputs in {@code [0, domain)}.
+ * <p>The mapping is a bijection, so {@code encode} is injective: distinct inputs in {@code [0,
+ * domain)} always yield distinct outputs in {@code [0, domain)}.
  */
 public final class FeistelCodec {
 

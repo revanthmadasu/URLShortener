@@ -192,7 +192,38 @@ normalized into a spec and an [ADR-0004](adr/0004-analytics-click-model.md).
 
 🚦 **Sign-off:** Engineer to review; ambiguity register + ADR-0004 document the decisions taken.
 
+## Task 4 — Reliability, observability & quality gates
+
+**Intent.** Make the service operable and the build self-policing: rate limiting, metrics,
+correlation logging, and enforced quality gates.
+
+**Delivered.**
+- **Rate limiting:** in-memory per-IP token bucket + interceptor on write methods → 429 with
+  `Retry-After`. Deterministic unit tests (injected clock) + an IT proving the 429.
+- **Observability:** domain Micrometer counters (`AppMetrics`) on `/actuator/prometheus`;
+  a `RequestIdFilter` correlation id in MDC + response header; quieted the *expected*
+  constraint-violation WARNs from the insert-and-catch path so real errors stand out.
+- **Quality gates (enforced in `mvn verify`/CI):** Spotless (google-java-format), JaCoCo report
+  + ≥75% line-coverage gate. Achieved **~94% line / ~79% branch**.
+- **Opt-in profiles:** `-Pspotbugs`, `-Pmutation` (PIT), `-Psecurity` (OWASP) — heavy gates kept
+  out of the per-PR path by design.
+- **Load:** k6 redirect script with p95/p99 budgets (`perf/redirect-load.js`).
+
+**Notable dispositions.**
+
+| Item | Disposition | Rationale |
+|---|---|---|
+| Resilience4j / Bucket4j for breaker + limiter | ❌ Rejected | Avoided unvetted Boot-4 deps; small, clock-testable implementations instead. |
+| `@WebMvcTest` slices failed after adding `WebConfig` | ✏️ Edited | The rate-limit `WebMvcConfigurer` got loaded into slices without its deps. Excluded `WebConfig` from the three slices (they don't test rate limiting; an IT does). |
+| Repeated `AppProperties` constructor churn in tests | ✏️ Edited | Centralized into `TestFixtures.appPropertiesWithCode(...)` so future config fields touch one place. |
+| Spotless reformatting the whole tree | ✅ Accepted | Ran `spotless:apply`; all tests still green (formatting-only). Now gated. |
+
+**Quality gate:** `./mvnw verify` → **101 unit + 6 integration**, Spotless clean, coverage gate met.
+
+🚦 **Sign-off:** Engineer to review; gates now enforce quality automatically on every build.
+
 <!-- Subsequent tasks appended per phase. -->
+
 
 
 

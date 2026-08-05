@@ -9,9 +9,9 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * A short-code → long-URL mapping. Persistence is owned by Flyway (see
- * {@code db/migration/V1__create_links.sql}); this entity maps to that schema and Hibernate
- * only validates it against the live schema ({@code ddl-auto=validate}).
+ * A short-code → long-URL mapping. Persistence is owned by Flyway (see {@code
+ * db/migration/V1__create_links.sql}); this entity maps to that schema and Hibernate only validates
+ * it against the live schema ({@code ddl-auto=validate}).
  */
 @Entity
 @Table(name = "links")

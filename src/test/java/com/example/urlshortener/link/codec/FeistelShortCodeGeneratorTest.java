@@ -6,14 +6,8 @@ import static org.mockito.Mockito.when;
 
 import com.example.urlshortener.common.error.Errors;
 import com.example.urlshortener.config.AppProperties;
-import com.example.urlshortener.config.AppProperties.Cache;
-import com.example.urlshortener.config.AppProperties.Code;
-import com.example.urlshortener.config.AppProperties.Redirect;
-import com.example.urlshortener.config.AppProperties.Security;
 import com.example.urlshortener.support.TestFixtures;
-import java.time.Duration;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
@@ -27,13 +21,7 @@ class FeistelShortCodeGeneratorTest {
   @Mock private CodeSequence sequence;
 
   private static AppProperties propsWith(String alphabet, int length) {
-    return new AppProperties(
-        "http://localhost:8080",
-        new Code(length, alphabet, Code.Strategy.FEISTEL, 2654435769L),
-        new Cache(Duration.ofHours(1), Duration.ofSeconds(30)),
-        new Security(true),
-        new Redirect(List.of("http", "https"), true),
-        new AppProperties.Analytics(true, "test-salt", Duration.ofDays(90)));
+    return TestFixtures.appPropertiesWithCode(alphabet, length);
   }
 
   @Test

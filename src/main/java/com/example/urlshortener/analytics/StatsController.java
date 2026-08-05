@@ -29,8 +29,7 @@ public class StatsController {
 
   @GetMapping("/api/v1/links/{code}/stats")
   public ClickStatsResponse stats(
-      @PathVariable String code,
-      @RequestParam(defaultValue = "30") @Min(1) @Max(365) int days) {
+      @PathVariable String code, @RequestParam(defaultValue = "30") @Min(1) @Max(365) int days) {
     linkService.getByCode(code); // 404 if unknown
     return analytics.stats(code, days);
   }
