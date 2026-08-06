@@ -55,6 +55,7 @@
       a.link { color: var(--accent); word-break: break-all; }
       .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
       code { background: var(--chip); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+      .metric { font: 700 24px/1 ui-monospace, monospace; color: var(--accent); }
     </style>
   </head>
   <body>
@@ -129,6 +130,44 @@
         <button onclick="deleteLink()">Delete</button>
         <p class="hint">Without a valid token this returns <code>403</code>.</p>
         <pre id="d-out">—</pre>
+      </section>
+
+      <!-- LATENCY -->
+      <section class="card wide">
+        <h2>Average response time (live)</h2>
+        <div class="row" style="align-items: flex-end">
+          <div style="flex: 0 0 auto">
+            <span class="metric" id="lat-now">– ms</span>
+            <div class="hint" style="margin-top: 2px">interval average</div>
+          </div>
+          <div style="flex: 0 0 auto">
+            <span class="metric" id="lat-max" style="color: var(--muted)">– ms</span>
+            <div class="hint" style="margin-top: 2px">peak (server, since start)</div>
+          </div>
+          <div style="flex: 1"></div>
+          <div style="flex: 0 0 auto">
+            <label>Code to load</label>
+            <input id="lat-code" placeholder="short code" style="min-width: 140px" />
+          </div>
+          <button class="secondary" style="margin: 0" onclick="sendHits()">Send 20 hits</button>
+          <button class="secondary" style="margin: 0" id="lat-toggle" onclick="toggleLatency()">
+            Pause
+          </button>
+        </div>
+        <svg id="lat-chart" viewBox="0 0 600 150" preserveAspectRatio="none"
+             style="width: 100%; height: 150px; margin-top: 12px; background: var(--bg);
+                    border: 1px solid var(--border); border-radius: 7px">
+          <polyline id="lat-line" fill="none" stroke="var(--accent)" stroke-width="2"
+                    points="" />
+          <polygon id="lat-area" fill="var(--accent)" opacity="0.12" points="" />
+          <text id="lat-label" x="596" y="16" text-anchor="end"
+                font-size="11" fill="var(--muted)"></text>
+        </svg>
+        <p class="hint">
+          Sampled every 2&nbsp;s from Micrometer's <code>http.server.requests</code> timer
+          (Actuator) — the mean latency of requests served in each interval. Use “Send 20 hits”
+          to drive redirect traffic and watch it move.
+        </p>
       </section>
 
       <!-- LOG -->
@@ -228,6 +267,77 @@
         show($("d-out"), status, status === 204 ? "Deleted." : body);
         log("DELETE /api/v1/links/" + code + " → " + status);
       }
+
+      // ---- Live average-response-time chart (Actuator http.server.requests timer) ----
+      const MAX_POINTS = 40;
+      let series = []; // interval-average latency in ms
+      let prev = null; // { count, totalSeconds }
+      let latencyTimer = null;
+
+      async function pollLatency() {
+        try {
+          const res = await fetch("/actuator/metrics/http.server.requests");
+          if (!res.ok) return;
+          const j = await res.json();
+          const m = (s) => (j.measurements.find((x) => x.statistic === s) || {}).value || 0;
+          const count = m("COUNT");
+          const totalSeconds = m("TOTAL_TIME");
+          $("lat-max").textContent = (m("MAX") * 1000).toFixed(1) + " ms";
+
+          if (prev) {
+            const dCount = count - prev.count;
+            const dTime = totalSeconds - prev.totalSeconds;
+            // Average latency of requests served during this interval; carry last value if idle.
+            const avgMs = dCount > 0 ? (dTime / dCount) * 1000 : series.length ? series[series.length - 1] : 0;
+            series.push(avgMs);
+            if (series.length > MAX_POINTS) series.shift();
+            $("lat-now").textContent = avgMs.toFixed(1) + " ms";
+            drawChart();
+          }
+          prev = { count, totalSeconds };
+        } catch (_) {
+          /* ignore transient errors */
+        }
+      }
+
+      function drawChart() {
+        const W = 600, H = 150, PAD = 10;
+        const n = series.length;
+        if (n < 2) return;
+        const max = Math.max(1, ...series);
+        const x = (i) => (i / (n - 1)) * W;
+        const y = (v) => H - PAD - (v / max) * (H - 2 * PAD);
+        const pts = series.map((v, i) => x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ");
+        $("lat-line").setAttribute("points", pts);
+        $("lat-area").setAttribute("points", "0," + (H - PAD) + " " + pts + " " + W + "," + (H - PAD));
+        $("lat-label").textContent = "peak in view: " + max.toFixed(1) + " ms";
+      }
+
+      async function sendHits() {
+        const code = ($("lat-code").value || $("r-code").value || $("s-code").value).trim();
+        if (!code) {
+          log("Send hits: enter a short code first (create one above).");
+          return;
+        }
+        const jobs = [];
+        for (let i = 0; i < 20; i++) jobs.push(fetch("/" + code, { redirect: "manual" }).catch(() => {}));
+        await Promise.all(jobs);
+        log("Sent 20 redirect hits to /" + code);
+      }
+
+      function toggleLatency() {
+        if (latencyTimer) {
+          clearInterval(latencyTimer);
+          latencyTimer = null;
+          $("lat-toggle").textContent = "Resume";
+        } else {
+          latencyTimer = setInterval(pollLatency, 2000);
+          $("lat-toggle").textContent = "Pause";
+        }
+      }
+
+      // Prime the counters, then start sampling.
+      pollLatency().then(() => (latencyTimer = setInterval(pollLatency, 2000)));
     </script>
   </body>
 </html>
