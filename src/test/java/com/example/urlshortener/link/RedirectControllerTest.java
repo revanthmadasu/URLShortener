@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.urlshortener.analytics.ClickAnalyticsService;
 import com.example.urlshortener.common.error.Errors;
+import com.example.urlshortener.common.metrics.AppMetrics;
 import com.example.urlshortener.config.WebConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,7 @@ class RedirectControllerTest {
   @Autowired private MockMvc mockMvc;
   @MockitoBean private LinkService linkService;
   @MockitoBean private ClickAnalyticsService analytics;
+  @MockitoBean private AppMetrics metrics;
 
   @Test
   void redirectsWith302AndLocation() throws Exception {

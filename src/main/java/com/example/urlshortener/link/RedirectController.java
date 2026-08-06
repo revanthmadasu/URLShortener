@@ -2,7 +2,9 @@ package com.example.urlshortener.link;
 
 import com.example.urlshortener.analytics.ClickAnalyticsService;
 import com.example.urlshortener.analytics.ClickContext;
+import com.example.urlshortener.common.metrics.AppMetrics;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.Duration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,15 +29,20 @@ public class RedirectController {
 
   private final LinkService linkService;
   private final ClickAnalyticsService analytics;
+  private final AppMetrics metrics;
 
-  public RedirectController(LinkService linkService, ClickAnalyticsService analytics) {
+  public RedirectController(
+      LinkService linkService, ClickAnalyticsService analytics, AppMetrics metrics) {
     this.linkService = linkService;
     this.analytics = analytics;
+    this.metrics = metrics;
   }
 
   @GetMapping("/{code:[A-Za-z0-9_-]{3,32}}")
   public ResponseEntity<Void> redirect(@PathVariable String code, HttpServletRequest request) {
+    long startNanos = System.nanoTime();
     String targetUrl = linkService.resolveTargetUrl(code);
+    metrics.recordRedirectLatency(Duration.ofNanos(System.nanoTime() - startNanos));
 
     // Only successful redirects are clicks (decision A1). Capture is async and best-effort.
     analytics.recordAsync(

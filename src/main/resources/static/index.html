@@ -164,9 +164,10 @@
                 font-size="11" fill="var(--muted)"></text>
         </svg>
         <p class="hint">
-          Sampled every 2&nbsp;s from Micrometer's <code>http.server.requests</code> timer
-          (Actuator) — the mean latency of requests served in each interval. Use “Send 20 hits”
-          to drive redirect traffic and watch it move.
+          Sampled every 2&nbsp;s from a dedicated <code>urlshortener.redirect.latency</code> timer
+          (Actuator) — the mean redirect-resolution time in each interval. It counts
+          <em>only</em> real redirects, so it reads <code>idle</code> when no links are being
+          clicked. Use “Send 20 hits” to drive traffic and watch it rise.
         </p>
       </section>
 
@@ -276,8 +277,14 @@
 
       async function pollLatency() {
         try {
-          const res = await fetch("/actuator/metrics/http.server.requests");
-          if (!res.ok) return;
+          // Dedicated redirect timer — counts ONLY real redirects, so this chart's own polling
+          // does not inflate it. When no links are being clicked, the interval is genuinely idle.
+          const res = await fetch("/actuator/metrics/urlshortener.redirect.latency");
+          if (!res.ok) {
+            // Metric doesn't exist until the first redirect happens.
+            $("lat-now").textContent = "idle";
+            return;
+          }
           const j = await res.json();
           const m = (s) => (j.measurements.find((x) => x.statistic === s) || {}).value || 0;
           const count = m("COUNT");
@@ -287,11 +294,11 @@
           if (prev) {
             const dCount = count - prev.count;
             const dTime = totalSeconds - prev.totalSeconds;
-            // Average latency of requests served during this interval; carry last value if idle.
-            const avgMs = dCount > 0 ? (dTime / dCount) * 1000 : series.length ? series[series.length - 1] : 0;
+            // No redirects this interval => genuine idle => baseline 0 (line drops to the axis).
+            const avgMs = dCount > 0 ? (dTime / dCount) * 1000 : 0;
             series.push(avgMs);
             if (series.length > MAX_POINTS) series.shift();
-            $("lat-now").textContent = avgMs.toFixed(1) + " ms";
+            $("lat-now").textContent = dCount > 0 ? avgMs.toFixed(1) + " ms" : "idle";
             drawChart();
           }
           prev = { count, totalSeconds };

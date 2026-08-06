@@ -2,6 +2,8 @@ package com.example.urlshortener.common.metrics;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import java.time.Duration;
 import org.springframework.stereotype.Component;
 
 /**
@@ -16,6 +18,7 @@ public class AppMetrics {
   private final Counter cacheHit;
   private final Counter cacheMiss;
   private final Counter cacheNegative;
+  private final Timer redirectLatency;
 
   public AppMetrics(MeterRegistry registry) {
     this.linksCreated = Counter.builder("urlshortener.links.created").register(registry);
@@ -25,6 +28,12 @@ public class AppMetrics {
         Counter.builder("urlshortener.redirect.cache").tag("result", "miss").register(registry);
     this.cacheNegative =
         Counter.builder("urlshortener.redirect.cache").tag("result", "negative").register(registry);
+    // Dedicated timer for the redirect resolution itself — a clean SLI that counts only real
+    // redirects (unlike http.server.requests, which also counts health checks and metrics polls).
+    this.redirectLatency =
+        Timer.builder("urlshortener.redirect.latency")
+            .description("Time to resolve a short code to its destination URL")
+            .register(registry);
   }
 
   public void linkCreated() {
@@ -41,5 +50,10 @@ public class AppMetrics {
 
   public void cacheNegative() {
     cacheNegative.increment();
+  }
+
+  /** Record the wall-clock time taken to resolve a redirect. */
+  public void recordRedirectLatency(Duration duration) {
+    redirectLatency.record(duration);
   }
 }
